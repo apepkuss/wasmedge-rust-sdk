@@ -93,12 +93,12 @@ jobs:
       - name: Test Rust SDK
         run: |
           cargo +nightly -Z sparse-registry update
-          cargo test --workspace --locked --features aot,wasmedge_process,ffi -- --nocapture
+          cargo test --workspace --locked --features aot,wasmedge_process,ffi -- --nocapture --test-threads=1
 
       - name: Test Rust SDK with async feature
         run: |
           cargo +nightly -Z sparse-registry update
-          cargo test --workspace --locked --features aot,async,wasmedge_process,ffi -- --nocapture
+          cargo test --workspace --locked --features aot,async,wasmedge_process,ffi -- --nocapture --test-threads=1
 
   build_fedora:
     name: Fedora latest
@@ -231,7 +231,7 @@ jobs:
       - name: Test Rust Bindings
         run: |
           cargo +nightly -Z sparse-registry update
-          cargo test --workspace --exclude async-wasi --locked --features aot,ffi -- --nocapture
+          cargo test --workspace --exclude async-wasi --locked --features aot,ffi -- --nocapture --test-threads=1
 
   build_windows:
     name: Windows
