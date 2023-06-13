@@ -12,9 +12,12 @@ use crate::{
     types::WasmEdgeString,
     Function, Global, Memory, Table, WasmEdgeResult,
 };
-use std::sync::Arc;
 #[cfg(all(feature = "async", target_os = "linux"))]
-use std::{path::PathBuf, sync::Mutex};
+use std::path::PathBuf;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 /// An [Instance] represents an instantiated module. In the instantiation process, An [Instance] is created from al[Module](crate::Module). From an [Instance] the exported [functions](crate::Function), [tables](crate::Table), [memories](crate::Memory), and [globals](crate::Global) can be fetched.
 #[derive(Debug)]
@@ -363,13 +366,21 @@ pub struct ImportModule {
     pub(crate) inner: Arc<InnerInstance>,
     pub(crate) registered: bool,
     name: String,
+    funcs: Arc<Mutex<HashMap<String, Function>>>,
 }
 impl Drop for ImportModule {
     fn drop(&mut self) {
+        dbg!("dropping ImportModule");
+
         if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
+            self.funcs.lock().unwrap().clear();
+
+            dbg!("start drop ImportModule");
+
             unsafe {
                 ffi::WasmEdge_ModuleInstanceDelete(self.inner.0);
             }
+            dbg!("dropped ImportModule");
         }
     }
 }
@@ -395,6 +406,7 @@ impl ImportModule {
                 inner: std::sync::Arc::new(InnerInstance(ctx)),
                 registered: false,
                 name: name.as_ref().to_string(),
+                funcs: Arc::new(Mutex::new(HashMap::new())),
             }),
         }
     }
@@ -410,12 +422,18 @@ impl AsImport for ImportModule {
         self.name.as_str()
     }
 
-    fn add_func(&mut self, name: impl AsRef<str>, mut func: Function) {
+    fn add_func(&mut self, name: impl AsRef<str>, func: Function) {
+        let fname = name.as_ref().to_string();
+
         let func_name: WasmEdgeString = name.into();
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddFunction(self.inner.0, func_name.as_raw(), func.inner.0);
         }
-        func.registered = true;
+
+        self.funcs
+            .lock()
+            .expect("[wasmedge-sys] failed to get the lock of function map while trying to add a host function to the import module.")
+            .insert(fname, func);
     }
 
     fn add_table(&mut self, name: impl AsRef<str>, mut table: Table) {
@@ -657,6 +675,7 @@ impl AsInstance for WasiModule {
             false => Ok(Function {
                 inner: Arc::new(InnerFunc(func_ctx)),
                 registered: true,
+                // ty: FuncType::create([], []).unwrap(),
             }),
         }
     }

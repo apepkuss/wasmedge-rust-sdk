@@ -530,9 +530,13 @@ impl Function {
 }
 impl Drop for Function {
     fn drop(&mut self) {
+        dbg!("Dropping Function");
+        dbg!(self.registered);
+
         if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
             // delete the function instance
             unsafe { ffi::WasmEdge_FunctionInstanceDelete(self.inner.0) };
+            dbg!("Dropped Function");
         }
     }
 }
@@ -651,8 +655,12 @@ impl FuncType {
 }
 impl Drop for FuncType {
     fn drop(&mut self) {
+        dbg!("dropping FuncType");
+        dbg!(self.registered);
+
         if !self.registered && !self.inner.0.is_null() {
             unsafe { ffi::WasmEdge_FunctionTypeDelete(self.inner.0) };
+            dbg!("droped FuncType");
         }
     }
 }
@@ -758,7 +766,7 @@ unsafe impl Sync for InnerFuncRef {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{types::WasmValue, Executor};
+    use crate::{types::WasmValue, AsImport, Executor, ImportModule};
     use std::{
         sync::{Arc, Mutex},
         thread,
@@ -768,6 +776,8 @@ mod tests {
 
     #[test]
     fn test_func_type() {
+        dbg!("test_func_type");
+
         // test FuncType with args and returns
         {
             let param_tys = vec![
@@ -825,6 +835,8 @@ mod tests {
 
     #[test]
     fn test_func_basic() {
+        dbg!("test_func_basic");
+
         #[derive(Debug)]
         struct Data<T, S> {
             _x: i32,
@@ -998,6 +1010,8 @@ mod tests {
 
     #[test]
     fn test_func_send() {
+        dbg!("test_func_send");
+
         // create a FuncType
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
@@ -1007,11 +1021,15 @@ mod tests {
         assert!(result.is_ok());
         let host_func = result.unwrap();
 
+        let tty = host_func.ty().unwrap();
+        dbg!(tty);
+
         let handle = thread::spawn(move || {
             // get func type
             let result = host_func.ty();
             assert!(result.is_ok());
             let ty = result.unwrap();
+            dbg!(&ty);
 
             // check parameters
             assert_eq!(ty.params_len(), 2);
@@ -1024,11 +1042,15 @@ mod tests {
             assert_eq!(return_tys, vec![ValType::I32]);
         });
 
-        handle.join().unwrap()
+        handle.join().unwrap();
+
+        dbg!("ending");
     }
 
     #[test]
     fn test_func_sync() {
+        dbg!("test_func_sync");
+
         // create a FuncType
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
@@ -1036,7 +1058,8 @@ mod tests {
         // create a host function
         let result = Function::create::<NeverType>(&func_ty, real_add, None, 0);
         assert!(result.is_ok());
-        let host_func = Arc::new(Mutex::new(result.unwrap()));
+        let host_func = result.unwrap();
+        let host_func = Arc::new(Mutex::new(host_func));
 
         let host_func_cloned = Arc::clone(&host_func);
         let handle = thread::spawn(move || {
@@ -1048,6 +1071,8 @@ mod tests {
             let result = host_func.ty();
             assert!(result.is_ok());
             let ty = result.unwrap();
+
+            dbg!(&ty);
 
             // check parameters
             assert_eq!(ty.params_len(), 2);
@@ -1160,5 +1185,36 @@ mod tests {
         assert!(result.is_ok());
         let returns = result.unwrap();
         assert_eq!(returns[0].to_i32(), 3);
+    }
+
+    #[test]
+    fn test_func_drop() {
+        dbg!("test_func_drop");
+
+        let host_name = "extern";
+
+        // create an import module
+        let result = ImportModule::create(host_name);
+        assert!(result.is_ok());
+        let mut import = result.unwrap();
+
+        // create a host function
+        let result = FuncType::create([ValType::ExternRef, ValType::I32], [ValType::I32]);
+        assert!(result.is_ok());
+        dbg!("to create func");
+        let func_ty = result.unwrap();
+        let result = Function::create::<NeverType>(&func_ty, real_add, None, 0);
+        dbg!("func created");
+        assert!(result.is_ok());
+        let host_func = result.unwrap();
+
+        // add the host function
+        import.add_func("func-add", host_func);
+
+        drop(func_ty);
+
+        dbg!("ending");
+
+        drop(import);
     }
 }
