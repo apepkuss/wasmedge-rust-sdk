@@ -363,24 +363,24 @@ pub struct ImportModule {
     pub(crate) inner: Arc<InnerInstance>,
     pub(crate) registered: bool,
     name: String,
-    // func_names: Vec<String>,
+    func_names: Vec<String>,
 }
 impl Drop for ImportModule {
     fn drop(&mut self) {
         dbg!("*** dropping ImportModule");
 
         if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
-            // dbg!(">>> start drop ImportModule's funcs");
+            dbg!(">>> start drop ImportModule's funcs");
 
-            // for name in self.func_names.iter() {
-            //     let mut f = self
-            //         .get_func_to_drop(name)
-            //         .expect("[wasmedge-sys] Not found host function named '{name}'");
-            //     f.registered = false;
-            //     drop(f);
-            // }
+            for name in self.func_names.iter() {
+                let mut f = self
+                    .get_func_to_drop(name)
+                    .expect("[wasmedge-sys] Not found host function named '{name}'");
+                f.registered = false;
+                drop(f);
+            }
 
-            // dbg!("<<< dropped ImportModule's funcs");
+            dbg!("<<< dropped ImportModule's funcs");
 
             dbg!(">>> start drop ImportModule");
 
@@ -413,26 +413,26 @@ impl ImportModule {
                 inner: std::sync::Arc::new(InnerInstance(ctx)),
                 registered: false,
                 name: name.as_ref().to_string(),
-                // func_names: Vec::new(),
+                func_names: Vec::new(),
             }),
         }
     }
 
-    // fn get_func_to_drop(&self, name: impl AsRef<str>) -> WasmEdgeResult<Function> {
-    //     let func_name: WasmEdgeString = name.as_ref().into();
-    //     let func_ctx = unsafe {
-    //         ffi::WasmEdge_ModuleInstanceFindFunction(self.inner.0 as *const _, func_name.as_raw())
-    //     };
-    //     match func_ctx.is_null() {
-    //         true => Err(Box::new(WasmEdgeError::Instance(
-    //             InstanceError::NotFoundFunc(name.as_ref().to_string()),
-    //         ))),
-    //         false => Ok(Function {
-    //             inner: Arc::new(InnerFunc(func_ctx)),
-    //             registered: true,
-    //         }),
-    //     }
-    // }
+    fn get_func_to_drop(&self, name: impl AsRef<str>) -> WasmEdgeResult<Function> {
+        let func_name: WasmEdgeString = name.as_ref().into();
+        let func_ctx = unsafe {
+            ffi::WasmEdge_ModuleInstanceFindFunction(self.inner.0 as *const _, func_name.as_raw())
+        };
+        match func_ctx.is_null() {
+            true => Err(Box::new(WasmEdgeError::Instance(
+                InstanceError::NotFoundFunc(name.as_ref().to_string()),
+            ))),
+            false => Ok(Function {
+                inner: Arc::new(InnerFunc(func_ctx)),
+                registered: true,
+            }),
+        }
+    }
 
     /// Provides a raw pointer to the inner module instance context.
     #[cfg(feature = "ffi")]
