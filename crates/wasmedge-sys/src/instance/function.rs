@@ -530,9 +530,16 @@ impl Function {
 }
 impl Drop for Function {
     fn drop(&mut self) {
+        dbg!("** Dropping Function");
+        dbg!(self.registered);
+
         if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
+            dbg!("start dropping function");
+
             // delete the function instance
             unsafe { ffi::WasmEdge_FunctionInstanceDelete(self.inner.0) };
+
+            dbg!("Dropped Function");
         }
     }
 }
@@ -651,8 +658,15 @@ impl FuncType {
 }
 impl Drop for FuncType {
     fn drop(&mut self) {
+        dbg!("* dropping FuncType");
+        dbg!(self.registered);
+
         if !self.registered && !self.inner.0.is_null() {
+            dbg!("start dropping FuncType");
+
             unsafe { ffi::WasmEdge_FunctionTypeDelete(self.inner.0) };
+
+            dbg!("droped FuncType");
         }
     }
 }
@@ -758,7 +772,7 @@ unsafe impl Sync for InnerFuncRef {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{types::WasmValue, Executor};
+    use crate::{types::WasmValue, AsImport, Executor, ImportModule};
     use std::{
         sync::{Arc, Mutex},
         thread,
@@ -1160,5 +1174,38 @@ mod tests {
         assert!(result.is_ok());
         let returns = result.unwrap();
         assert_eq!(returns[0].to_i32(), 3);
+    }
+
+    #[test]
+    fn test_func_drop() {
+        dbg!("test_func_drop");
+
+        let host_name = "extern";
+
+        // create an import module
+        let result = ImportModule::create(host_name);
+        assert!(result.is_ok());
+        let mut import = result.unwrap();
+
+        // create a host function
+        let result = FuncType::create([ValType::ExternRef, ValType::I32], [ValType::I32]);
+        assert!(result.is_ok());
+        dbg!("to create func");
+        let func_ty = result.unwrap();
+        let result = Function::create::<NeverType>(&func_ty, real_add, None, 0);
+        dbg!("func created");
+        assert!(result.is_ok());
+        let host_func = result.unwrap();
+
+        // add the host function
+        import.add_func("func-add", host_func);
+
+        // dbg!("to drop func_ty");
+
+        // drop(func_ty);
+
+        // dbg!("to drop import");
+
+        // drop(import);
     }
 }
