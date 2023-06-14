@@ -446,7 +446,7 @@ impl AsImport for ImportModule {
     }
 
     fn add_func(&mut self, name: impl AsRef<str>, mut func: Function) {
-        // self.func_names.push(name.as_ref().to_string());
+        self.func_names.push(name.as_ref().to_string());
 
         let func_name: WasmEdgeString = name.into();
         unsafe {
