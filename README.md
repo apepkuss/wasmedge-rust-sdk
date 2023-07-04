@@ -2,6 +2,8 @@
 
 ![Crates.io](https://img.shields.io/crates/d/wasmedge-sdk?label=crates.io&link=https%3A%2F%2Fcrates.io%2Fcrates%2Fwasmedge-sdk)
 
+![Discord](https://img.shields.io/discord/846973236280950824?label=Discord)
+
 WasmEdge Rust SDK provides idiomatic [Rust](https://www.rust-lang.org/) language bindings for [WasmEdge](https://wasmedge.org/)
 
 **Notice:** This project is still under active development and not guaranteed to have a stable API.
