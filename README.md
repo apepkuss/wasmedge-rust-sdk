@@ -1,14 +1,18 @@
-# WasmEdge Rust SDK
+<div align="center">
+  <h1>WasmEdge Rust SDK</h1>
 
-![Crates.io](https://img.shields.io/crates/d/wasmedge-sdk?label=crates.io&link=https%3A%2F%2Fcrates.io%2Fcrates%2Fwasmedge-sdk)
+  <p>
+    <strong>Rust bindings to 
+    <a href="https://wasmedge.org/">WasmEdge Runtime</a></strong>
+  </p>
 
-[![Crates.io](https://img.shields.io/crates/d/wasmedge-sdk?label=crates.io&link=https%3A%2F%2Fcrates.io%2Fcrates%2Fwasmedge-sdk)](https://crates.io/crates/wasmedge-sdk)
+  <p>
+    <a href="https://crates.io/crates/wasmedge-sdk"><img alt="Crates.io" src="https://img.shields.io/crates/d/wasmedge-sdk?label=wasmedge-sdk&link=https%3A%2F%2Fcrates.io%2Fcrates%2Fwasmedge-sdk"></a>
+    <a href="https://discord.com/channels/846973236280950824/846973236280950827"><img alt="Discord" src="https://img.shields.io/discord/846973236280950824?label=Discord"></a>
+  </p>
+</div>
 
-![Discord](https://img.shields.io/discord/846973236280950824?label=Discord)
-
-WasmEdge Rust SDK provides idiomatic [Rust](https://www.rust-lang.org/) language bindings for [WasmEdge](https://wasmedge.org/)
-
-**Notice:** This project is still under active development and not guaranteed to have a stable API.
+**Notice:** This project is still under **active development** and not guaranteed to have a stable API.
 
 - [Documentation](https://wasmedge.org/docs/)
 - [WasmEdge website](https://wasmedge.org/)
