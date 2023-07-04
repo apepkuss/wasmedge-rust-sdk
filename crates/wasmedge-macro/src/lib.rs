@@ -57,21 +57,21 @@ fn expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::TokenStre
         },
         FnArg::Receiver(_) => panic!("argument is a receiver"),
     };
-    // get the name of the third argument
-    let third_arg = wrapper_fn_inputs.last().unwrap();
-    let third_arg_ident = match third_arg {
-        FnArg::Typed(PatType { pat, .. }) => match &**pat {
-            Pat::Ident(PatIdent { ident, .. }) => ident.clone(),
-            Pat::Wild(PatWild {
-                underscore_token, ..
-            }) => {
-                let span = underscore_token.spans[0];
-                syn::Ident::new("_", span)
-            }
-            _ => panic!("argument pattern is not a simple ident"),
-        },
-        FnArg::Receiver(_) => panic!("argument is a receiver"),
-    };
+    // // get the name of the third argument
+    // let third_arg = wrapper_fn_inputs.last().unwrap();
+    // let third_arg_ident = match third_arg {
+    //     FnArg::Typed(PatType { pat, .. }) => match &**pat {
+    //         Pat::Ident(PatIdent { ident, .. }) => ident.clone(),
+    //         Pat::Wild(PatWild {
+    //             underscore_token, ..
+    //         }) => {
+    //             let span = underscore_token.spans[0];
+    //             syn::Ident::new("_", span)
+    //         }
+    //         _ => panic!("argument pattern is not a simple ident"),
+    //     },
+    //     FnArg::Receiver(_) => panic!("argument is a receiver"),
+    // };
 
     let fn_generics = &item_fn.sig.generics;
 
@@ -88,7 +88,7 @@ fn expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::TokenStre
 
     // extract T from Option<&mut T>
     let ret = match item_fn.sig.inputs.len() {
-        3 => {
+        2 => {
             // generate token stream
             quote!(
                 # wrapper_visibility fn #wrapper_fn_name_ident #fn_generics (#wrapper_fn_inputs) #wrapper_fn_return {
@@ -100,7 +100,8 @@ fn expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::TokenStre
                     // create a Caller instance
                     let caller = Caller::new(frame);
 
-                    #inner_fn_name_ident(caller, #second_arg_ident, #third_arg_ident)
+                    // #inner_fn_name_ident(caller, #second_arg_ident, #third_arg_ident)
+                    #inner_fn_name_ident(caller, #second_arg_ident)
                 }
             )
         }
@@ -210,7 +211,7 @@ fn sys_expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::Token
 
     // extract T from Option<&mut T>
     let ret = match item_fn.sig.inputs.len() {
-        3 => {
+        2 => {
             let fn_generics = &item_fn.sig.generics;
 
             // inputs of wrapper function
