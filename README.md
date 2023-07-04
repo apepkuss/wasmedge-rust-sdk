@@ -2,7 +2,7 @@
 
 ![maintenance-status](https://img.shields.io/badge/maintenance-actively--developed-brightgreen.svg)
 
-![Crates.io (latest)](https://img.shields.io/crates/dv/:wasmedge-sdk)
+![Crates.io (version)](https://img.shields.io/crates/dv/wasmedge-sdk/0.9.0)
 
 WasmEdge Rust SDK provides idiomatic [Rust](https://www.rust-lang.org/) language bindings for [WasmEdge](https://wasmedge.org/)
 
