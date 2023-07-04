@@ -261,7 +261,7 @@ impl<T: Send + Sync + Clone> PluginModuleBuilder<T> {
     pub fn with_func<Args, Rets>(
         mut self,
         name: impl AsRef<str>,
-        real_func: HostFn<T>,
+        real_func: HostFn,
     ) -> WasmEdgeResult<Self>
     where
         Args: WasmValTypeList,
@@ -270,7 +270,7 @@ impl<T: Send + Sync + Clone> PluginModuleBuilder<T> {
         let args = Args::wasm_types();
         let returns = Rets::wasm_types();
         let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
-        let inner_func = sys::Function::create::<T>(&ty.into(), real_func, None, 0)?;
+        let inner_func = sys::Function::create(&ty.into(), real_func, 0)?;
         self.funcs.push((name.as_ref().to_owned(), inner_func));
         Ok(self)
     }

@@ -128,7 +128,7 @@ pub type NeverType = wasmedge_types::NeverType;
 pub type CallingFrame = wasmedge_sys::CallingFrame;
 
 /// Defines the signature of a host function.
-pub type HostFn<T> = wasmedge_sys::HostFn<T>;
+pub type HostFn = wasmedge_sys::HostFn;
 
 /// Defines the signature of a finalizer funtion that is used to free the host data.
 pub type Finalizer = wasmedge_sys::plugin::Finalizer;

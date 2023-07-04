@@ -24,7 +24,7 @@ use wasmedge_sys::{self as sys, AsImport};
 /// fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     // a native function to be imported as host function
 ///     #[host_function]
-///     fn real_add<T>(_: Caller, inputs: Vec<WasmValue>, _data: Option<&mut T>) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
+///     fn real_add(_: Caller, inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
 ///         if inputs.len() != 2 {
 ///             return Err(HostFuncError::User(1));
 ///         }
@@ -112,7 +112,7 @@ impl<T: Send + Sync + Clone> ImportObjectBuilder<T> {
     pub fn with_func<Args, Rets>(
         mut self,
         name: impl AsRef<str>,
-        real_func: HostFn<T>,
+        real_func: HostFn,
     ) -> WasmEdgeResult<Self>
     where
         Args: WasmValTypeList,
@@ -121,7 +121,7 @@ impl<T: Send + Sync + Clone> ImportObjectBuilder<T> {
         let args = Args::wasm_types();
         let returns = Rets::wasm_types();
         let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
-        let inner_func = sys::Function::create::<T>(&ty.into(), real_func, None, 0)?;
+        let inner_func = sys::Function::create(&ty.into(), real_func, 0)?;
         self.funcs.push((name.as_ref().to_owned(), inner_func));
         Ok(self)
     }
@@ -145,9 +145,9 @@ impl<T: Send + Sync + Clone> ImportObjectBuilder<T> {
         mut self,
         name: impl AsRef<str>,
         ty: FuncType,
-        real_func: HostFn<T>,
+        real_func: HostFn,
     ) -> WasmEdgeResult<Self> {
-        let inner_func = sys::Function::create::<T>(&ty.into(), real_func, None, 0)?;
+        let inner_func = sys::Function::create(&ty.into(), real_func, 0)?;
         self.funcs.push((name.as_ref().to_owned(), inner_func));
         Ok(self)
     }
@@ -365,10 +365,9 @@ mod tests {
     #[test]
     #[allow(clippy::assertions_on_result_states)]
     fn test_import_add_func() {
-        fn real_add<T>(
+        fn real_add(
             _frame: CallingFrame,
             inputs: Vec<WasmValue>,
-            _data: Option<&mut T>,
         ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
             if inputs.len() != 2 {
                 return Err(HostFuncError::User(1));
@@ -988,10 +987,9 @@ mod tests {
         handle.join().unwrap();
     }
 
-    fn real_add<T>(
+    fn real_add(
         _frame: CallingFrame,
         inputs: Vec<WasmValue>,
-        _data: Option<&mut T>,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));

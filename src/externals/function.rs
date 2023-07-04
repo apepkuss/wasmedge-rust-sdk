@@ -20,7 +20,7 @@ use wasmedge_sys as sys;
 ///
 /// // A native function to be wrapped as a host function
 /// #[host_function]
-/// fn real_add<T>(_: Caller, input: Vec<WasmValue>, _data: Option<&mut T>) -> Result<Vec<WasmValue>, HostFuncError> {
+/// fn real_add(_: Caller, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
 ///     if input.len() != 2 {
 ///         return Err(HostFuncError::User(1));
 ///     }
@@ -42,7 +42,7 @@ use wasmedge_sys as sys;
 /// }
 ///
 /// // create a host function
-/// let result = Func::wrap::<(i32, i32), i32, NeverType>(real_add, None);
+/// let result = Func::wrap::<(i32, i32), i32>(real_add);
 /// assert!(result.is_ok());
 /// let func = result.unwrap();
 ///
@@ -80,12 +80,8 @@ impl Func {
     /// # Error
     ///
     /// * If fail to create a Func instance, then [WasmEdgeError::Func(FuncError::Create)](crate::error::FuncError) is returned.
-    pub fn new<T>(
-        ty: FuncType,
-        real_func: HostFn<T>,
-        data: Option<&mut T>,
-    ) -> WasmEdgeResult<Self> {
-        let inner = sys::Function::create::<T>(&ty.clone().into(), real_func, data, 0)?;
+    pub fn new(ty: FuncType, real_func: HostFn) -> WasmEdgeResult<Self> {
+        let inner = sys::Function::create(&ty.clone().into(), real_func, 0)?;
         Ok(Self {
             inner,
             name: None,
@@ -105,7 +101,7 @@ impl Func {
     /// # Error
     ///
     /// * If fail to create a Func instance, then [WasmEdgeError::Func(FuncError::Create)](crate::error::FuncError) is returned.
-    pub fn wrap<Args, Rets, T>(real_func: HostFn<T>, data: Option<&mut T>) -> WasmEdgeResult<Self>
+    pub fn wrap<Args, Rets>(real_func: HostFn) -> WasmEdgeResult<Self>
     where
         Args: WasmValTypeList,
         Rets: WasmValTypeList,
@@ -113,7 +109,7 @@ impl Func {
         let args = Args::wasm_types();
         let returns = Rets::wasm_types();
         let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
-        let inner = sys::Function::create::<T>(&ty.clone().into(), real_func, data, 0)?;
+        let inner = sys::Function::create(&ty.clone().into(), real_func, 0)?;
         Ok(Self {
             inner,
             name: None,
@@ -469,7 +465,7 @@ mod tests {
     #[test]
     fn test_func_wrap() {
         // create a host function
-        let result = Func::wrap::<(i32, i32), i32, NeverType>(real_add, None);
+        let result = Func::wrap::<(i32, i32), i32>(real_add);
         assert!(result.is_ok());
         let func = result.unwrap();
 
@@ -483,10 +479,9 @@ mod tests {
         assert_eq!(returns[0].to_i32(), 5);
     }
 
-    fn real_add<T>(
+    fn real_add(
         _frame: CallingFrame,
         inputs: Vec<WasmValue>,
-        _data: Option<&mut T>,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));
