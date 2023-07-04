@@ -161,7 +161,7 @@ mod tests {
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create::<NeverType>(&func_ty, real_add, None, 0);
+        let result = Function::create(&func_ty, real_add, 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
         import.add_func("add", host_func);
@@ -247,7 +247,7 @@ mod tests {
             let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
             assert!(result.is_ok());
             let func_ty = result.unwrap();
-            let result = Function::create::<NeverType>(&func_ty, real_add, None, 0);
+            let result = Function::create(&func_ty, real_add, 0);
             assert!(result.is_ok());
             let host_func = result.unwrap();
             import.add_func("add", host_func);
@@ -339,10 +339,9 @@ mod tests {
     }
 
     #[sys_host_function]
-    fn real_add<T>(
+    fn real_add(
         _frame: CallingFrame,
         inputs: Vec<WasmValue>,
-        _: Option<&mut T>,
     ) -> Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));
