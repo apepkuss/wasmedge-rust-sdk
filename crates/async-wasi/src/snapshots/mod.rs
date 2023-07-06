@@ -7,7 +7,7 @@ use common::error::Errno;
 use env::{wasi_types::__wasi_fd_t, VFD};
 use std::path::PathBuf;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WasiCtx {
     args: Vec<String>,
     envs: Vec<String>,
@@ -143,7 +143,6 @@ impl WasiCtx {
         Ok(())
     }
 }
-
 unsafe impl Send for WasiCtx {}
 unsafe impl Sync for WasiCtx {}
 
@@ -616,7 +615,7 @@ pub mod serialize {
                 VFD::Inode(INode::Stdin(_)) => Self::Stdin(SerialStdin),
                 VFD::Inode(INode::Stdout(_)) => Self::Stdout(SerialStdout),
                 VFD::Inode(INode::Stderr(_)) => Self::Stderr(SerialStderr),
-                VFD::AsyncSocket(AsyncWasiSocket { inner, state }) => match inner {
+                VFD::AsyncSocket(AsyncWasiSocket { inner, state }) => match *inner.read() {
                     super::common::net::async_tokio::AsyncWasiSocketInner::PreOpen(_) => {
                         Self::Closed
                     }

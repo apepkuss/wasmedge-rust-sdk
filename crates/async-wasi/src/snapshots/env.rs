@@ -3,7 +3,7 @@ pub use super::common::{error::Errno, types as wasi_types, vfs};
 #[cfg(all(unix, feature = "async_tokio"))]
 pub use super::common::net::async_tokio::AsyncWasiSocket;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum VFD {
     Closed,
     Inode(vfs::INode),

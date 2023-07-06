@@ -1,9 +1,11 @@
 use super::*;
+use parking_lot::RwLock;
 use std::{
     fs, io,
     io::{Read, Seek, Write},
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
+    sync::Arc,
     time::{Duration, SystemTime},
 };
 
@@ -23,7 +25,7 @@ fn systimespec(
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WasiStdin;
 impl WasiStdin {
     #[inline]
@@ -142,7 +144,7 @@ impl WasiStdin {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WasiStdout;
 impl WasiStdout {
     #[inline]
@@ -261,7 +263,7 @@ impl WasiStdout {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WasiStderr;
 impl WasiStderr {
     #[inline]
@@ -380,9 +382,9 @@ impl WasiStderr {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WasiFile {
-    pub fd: fs::File,
+    pub fd: Arc<RwLock<fs::File>>,
     pub flags: FdFlags,
     pub right: WASIRights,
 }
@@ -403,7 +405,7 @@ impl WasiFile {
         len: wasi_types::__wasi_filesize_t,
     ) -> Result<(), Errno> {
         self.right.can(WASIRights::FD_ALLOCATE)?;
-        let f = &mut self.fd;
+        let f = &mut self.fd.write();
         let metadata = f.metadata()?;
         let file_len = metadata.len();
         let new_len = offset + len;
@@ -417,18 +419,18 @@ impl WasiFile {
 
     pub fn fd_datasync(&mut self) -> Result<(), Errno> {
         self.right.can(WASIRights::FD_DATASYNC)?;
-        self.fd.sync_data()?;
+        self.fd.write().sync_data()?;
         Ok(())
     }
 
     pub fn fd_sync(&mut self) -> Result<(), Errno> {
         self.right.can(WASIRights::FD_SYNC)?;
-        self.fd.sync_all()?;
+        self.fd.write().sync_all()?;
         Ok(())
     }
 
     pub fn fd_fdstat_get(&mut self) -> Result<FdStat, Errno> {
-        let meta = self.fd.metadata()?;
+        let meta = self.fd.read().metadata()?;
         let fd_flags = FdStat {
             filetype: if meta.is_symlink() {
                 FileType::SYMBOLIC_LINK
@@ -468,7 +470,7 @@ impl WasiFile {
 
     pub fn fd_filestat_get(&mut self) -> Result<Filestat, Errno> {
         self.right.can(WASIRights::FD_FILESTAT_GET)?;
-        let meta = self.fd.metadata()?;
+        let meta = self.fd.read().metadata()?;
         let filetype = if meta.is_symlink() {
             FileType::SYMBOLIC_LINK
         } else {
@@ -494,7 +496,7 @@ impl WasiFile {
         size: wasi_types::__wasi_filesize_t,
     ) -> Result<(), Errno> {
         self.right.can(WASIRights::FD_FILESTAT_SET_SIZE)?;
-        self.fd.set_len(size)?;
+        self.fd.write().set_len(size)?;
         Ok(())
     }
 
@@ -519,7 +521,7 @@ impl WasiFile {
         #[cfg(unix)]
         {
             use std::os::unix::prelude::AsRawFd;
-            let fd = self.fd.as_raw_fd();
+            let fd = self.fd.read().as_raw_fd();
             let times = [
                 {
                     match atim {
@@ -567,7 +569,7 @@ impl WasiFile {
 
     pub fn fd_read(&mut self, bufs: &mut [io::IoSliceMut<'_>]) -> Result<usize, Errno> {
         self.right.can(WASIRights::FD_READ)?;
-        Ok(self.fd.read_vectored(bufs)?)
+        Ok(self.fd.write().read_vectored(bufs)?)
     }
 
     pub fn fd_pread(
@@ -579,15 +581,15 @@ impl WasiFile {
 
         self.right.can(WASIRights::FD_READ | WASIRights::FD_SEEK)?;
 
-        let old_seek = self.fd.stream_position()?;
-        let r = self.fd.read_vectored(bufs);
-        self.fd.seek(SeekFrom::Start(old_seek))?;
+        let old_seek = self.fd.write().stream_position()?;
+        let r = self.fd.write().read_vectored(bufs);
+        self.fd.write().seek(SeekFrom::Start(old_seek))?;
         Ok(r?)
     }
 
     pub fn fd_write(&mut self, bufs: &[io::IoSlice<'_>]) -> Result<usize, Errno> {
         self.right.can(WASIRights::FD_WRITE)?;
-        Ok(self.fd.write_vectored(bufs)?)
+        Ok(self.fd.write().write_vectored(bufs)?)
     }
 
     pub fn fd_pwrite(
@@ -599,9 +601,9 @@ impl WasiFile {
 
         self.right.can(WASIRights::FD_WRITE | WASIRights::FD_SEEK)?;
 
-        let old_seek = self.fd.stream_position()?;
-        let r = self.fd.write_vectored(bufs);
-        self.fd.seek(SeekFrom::Start(old_seek))?;
+        let old_seek = self.fd.write().stream_position()?;
+        let r = self.fd.write().write_vectored(bufs);
+        self.fd.write().seek(SeekFrom::Start(old_seek))?;
         Ok(r?)
     }
 
@@ -628,17 +630,17 @@ impl WasiFile {
             _ => return Err(Errno::__WASI_ERRNO_INVAL),
         };
 
-        Ok(self.fd.seek(pos)?)
+        Ok(self.fd.write().seek(pos)?)
     }
 
     pub fn fd_tell(&mut self) -> Result<wasi_types::__wasi_filesize_t, Errno> {
         use std::io::SeekFrom;
         self.right.can(WASIRights::FD_TELL)?;
-        Ok(self.fd.stream_position()?)
+        Ok(self.fd.write().stream_position()?)
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WasiPreOpenDir {
     pub guest_path: PathBuf,
     wasidir: WasiDir,
@@ -731,7 +733,7 @@ impl WasiPreOpenDir {
         let fd = opts.open(path)?;
 
         Ok(WasiFile {
-            fd,
+            fd: Arc::new(RwLock::new(fd)),
             flags: fdflags,
             right: fs_rights_base,
         })
@@ -822,7 +824,7 @@ impl WasiPreOpenDir {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WasiDir {
     // absolutize
     pub real_path: PathBuf,
@@ -1024,7 +1026,7 @@ impl WasiDir {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum INode {
     PreOpenDir(WasiPreOpenDir),
     Dir(WasiDir),

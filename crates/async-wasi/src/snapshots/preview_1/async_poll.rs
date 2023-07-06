@@ -65,27 +65,28 @@ async fn wait_fd(fd: &AsyncWasiSocket, type_: SubscriptionFdType) -> Result<__wa
             },
         };
 
+    let f = fd.inner.read();
     match type_ {
         SubscriptionFdType::Write(userdata) => Ok(handler(
-            fd.inner.writable().await,
+            f.writable().await,
             userdata,
             __wasi_eventtype_t::__WASI_EVENTTYPE_FD_WRITE,
         )),
         SubscriptionFdType::Read(userdata) => Ok(handler(
-            fd.inner.readable().await,
+            f.readable().await,
             userdata,
             __wasi_eventtype_t::__WASI_EVENTTYPE_FD_READ,
         )),
         SubscriptionFdType::Both { read, write } => {
             tokio::select! {
-                read_result=fd.inner.readable()=>{
+                read_result=f.readable()=>{
                     Ok(handler(
                         read_result,
                         read,
                         __wasi_eventtype_t::__WASI_EVENTTYPE_FD_READ,
                     ))
                 }
-                write_result=fd.inner.writable()=>{
+                write_result=f.writable()=>{
                     Ok(handler(
                         write_result,
                         write,
