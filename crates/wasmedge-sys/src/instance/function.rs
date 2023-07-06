@@ -10,6 +10,8 @@ use core::ffi::c_void;
 #[cfg(all(feature = "async", target_os = "linux"))]
 use std::pin::Pin;
 use std::{convert::TryInto, sync::Arc};
+#[cfg(all(feature = "async", target_os = "linux"))]
+use wasmedge_types::NeverType;
 use wasmedge_types::ValType;
 
 /// Defines the signature of an asynchronous host function.
