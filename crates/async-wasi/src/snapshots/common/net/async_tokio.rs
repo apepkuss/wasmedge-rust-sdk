@@ -129,6 +129,7 @@ pub struct AsyncWasiSocket {
     pub(crate) inner: AsyncWasiSocketInner,
     pub state: WasiSocketState,
 }
+unsafe impl Send for AsyncWasiSocket {}
 
 #[inline]
 fn handle_timeout_result<T>(
