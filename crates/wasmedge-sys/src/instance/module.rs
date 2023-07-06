@@ -968,17 +968,7 @@ impl AsyncWasiModule {
             match wasi_func {
                 WasiFunc::SyncFn(name, (ty_args, ty_rets), real_fn) => {
                     let func_ty = crate::FuncType::create(ty_args, ty_rets)?;
-                    let func = Function::create(
-                        &func_ty,
-                        real_fn,
-                        Some(
-                            &mut async_wasi_module
-                                .wasi_ctx
-                                .lock()
-                                .expect("[wasmedge-sys] failed to get the lock on wasi_ctx"),
-                        ),
-                        0,
-                    )?;
+                    let func = Function::create(&func_ty, real_fn, 0)?;
                     async_wasi_module.add_func(name, func);
                 }
                 WasiFunc::AsyncFn(name, (ty_args, ty_rets), real_async_fn) => {
@@ -1029,17 +1019,7 @@ impl AsyncWasiModule {
             match wasi_func {
                 WasiFunc::SyncFn(name, (ty_args, ty_rets), real_fn) => {
                     let func_ty = crate::FuncType::create(ty_args, ty_rets)?;
-                    let func = Function::create(
-                        &func_ty,
-                        real_fn,
-                        Some(
-                            &mut self
-                                .wasi_ctx
-                                .lock()
-                                .expect("[wasmedge-sys] failed to get the lock on wasi_ctx"),
-                        ),
-                        0,
-                    )?;
+                    let func = Function::create(&func_ty, real_fn, 0)?;
                     self.add_func(name, func);
                 }
                 WasiFunc::AsyncFn(name, (ty_args, ty_rets), real_async_fn) => {
