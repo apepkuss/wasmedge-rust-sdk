@@ -114,11 +114,11 @@ impl async_wasi::snapshots::common::memory::Memory for Memory {
 pub fn args_get(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([argv, argv_buf]) = args.get(0..2) {
         let argv = argv.to_i32() as usize;
@@ -138,11 +138,11 @@ pub fn args_get(
 pub fn args_sizes_get(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([argc, argv_buf_size]) = args.get(0..2) {
         let argc = argc.to_i32() as usize;
@@ -162,11 +162,11 @@ pub fn args_sizes_get(
 pub fn environ_get(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    ctx: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = ctx.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2]) = args.get(0..2) {
         let environ = p1.to_i32() as usize;
@@ -186,11 +186,11 @@ pub fn environ_get(
 pub fn environ_sizes_get(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2]) = args.get(0..2) {
         let environ_count = p1.to_i32() as usize;
@@ -210,11 +210,11 @@ pub fn environ_sizes_get(
 pub fn clock_res_get(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2]) = args.get(0..2) {
         let clock_id = p1.to_i32() as u32;
@@ -234,11 +234,11 @@ pub fn clock_res_get(
 pub fn clock_time_get(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2, p3]) = args.get(0..3) {
         let clock_id = p1.to_i32() as u32;
@@ -261,11 +261,11 @@ pub fn clock_time_get(
 pub fn random_get(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2]) = args.get(0..2) {
         let buf = p1.to_i32() as usize;
@@ -286,11 +286,11 @@ pub fn random_get(
 pub fn fd_prestat_get(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2]) = args.get(0..2) {
         let fd = p1.to_i32();
@@ -311,11 +311,11 @@ pub fn fd_prestat_get(
 pub fn fd_prestat_dir_name(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2, p3]) = args.get(0..3) {
         let fd = p1.to_i32();
@@ -338,11 +338,11 @@ pub fn fd_prestat_dir_name(
 pub fn fd_renumber(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2]) = args.get(0..2) {
         let from = p1.to_i32();
@@ -358,11 +358,11 @@ pub fn fd_renumber(
 pub fn fd_advise(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2, p3, p4]) = args.get(0..4) {
         let fd = p1.to_i32();
@@ -382,11 +382,11 @@ pub fn fd_advise(
 pub fn fd_allocate(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2, p3]) = args.get(0..3) {
         let fd = p1.to_i32();
@@ -405,11 +405,11 @@ pub fn fd_allocate(
 pub fn fd_close(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1]) = args.get(0..1) {
         let fd = p1.to_i32();
@@ -424,11 +424,11 @@ pub fn fd_close(
 pub fn fd_seek(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2, p3, p4]) = args.get(0..4) {
         let fd = p1.to_i32();
@@ -453,11 +453,11 @@ pub fn fd_seek(
 pub fn fd_sync(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1]) = args.get(0..1) {
         let fd = p1.to_i32();
@@ -472,11 +472,11 @@ pub fn fd_sync(
 pub fn fd_datasync(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1]) = args.get(0..1) {
         let fd = p1.to_i32();
@@ -491,11 +491,11 @@ pub fn fd_datasync(
 pub fn fd_tell(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2]) = args.get(0..2) {
         let fd = p1.to_i32();
@@ -516,11 +516,11 @@ pub fn fd_tell(
 pub fn fd_fdstat_get(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2]) = args.get(0..2) {
         let fd = p1.to_i32();
@@ -541,11 +541,11 @@ pub fn fd_fdstat_get(
 pub fn fd_fdstat_set_flags(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2]) = args.get(0..2) {
         let fd = p1.to_i32();
@@ -563,11 +563,11 @@ pub fn fd_fdstat_set_flags(
 pub fn fd_fdstat_set_rights(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2, p3]) = args.get(0..3) {
         let fd = p1.to_i32();
@@ -590,11 +590,11 @@ pub fn fd_fdstat_set_rights(
 pub fn fd_filestat_get(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2]) = args.get(0..2) {
         let fd = p1.to_i32();
@@ -615,11 +615,11 @@ pub fn fd_filestat_get(
 pub fn fd_filestat_set_size(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2]) = args.get(0..2) {
         let fd = p1.to_i32();
@@ -640,11 +640,11 @@ pub fn fd_filestat_set_size(
 pub fn fd_filestat_set_times(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2, p3, p4]) = args.get(0..4) {
         let fd = p1.to_i32();
@@ -664,11 +664,11 @@ pub fn fd_filestat_set_times(
 pub fn fd_read(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2, p3, p4]) = args.get(0..4) {
         let fd = p1.to_i32();
@@ -693,11 +693,11 @@ pub fn fd_read(
 pub fn fd_pread(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2, p3, p4, p5]) = args.get(0..5) {
         let fd = p1.to_i32();
@@ -724,11 +724,11 @@ pub fn fd_pread(
 pub fn fd_write(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2, p3, p4]) = args.get(0..4) {
         let fd = p1.to_i32();
@@ -753,11 +753,11 @@ pub fn fd_write(
 pub fn fd_pwrite(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2, p3, p4, p5]) = args.get(0..5) {
         let fd = p1.to_i32();
@@ -784,11 +784,11 @@ pub fn fd_pwrite(
 pub fn fd_readdir(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2, p3, p4, p5]) = args.get(0..5) {
         let fd = p1.to_i32();
@@ -815,11 +815,11 @@ pub fn fd_readdir(
 pub fn path_create_directory(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2, p3]) = args.get(0..3) {
         let dirfd = p1.to_i32();
@@ -842,11 +842,11 @@ pub fn path_create_directory(
 pub fn path_filestat_get(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2, p3, p4, p5]) = args.get(0..5) {
         let fd = p1.to_i32();
@@ -873,7 +873,6 @@ pub fn path_filestat_get(
 pub fn path_filestat_set_times(
     _frame: CallingFrame,
     _args: Vec<WasmValue>,
-    _data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
     Ok(vec![WasmValue::from_i32(
         Errno::__WASI_ERRNO_NOSYS.0 as i32,
@@ -884,7 +883,6 @@ pub fn path_filestat_set_times(
 pub fn path_link(
     _frame: CallingFrame,
     _args: Vec<WasmValue>,
-    _data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
     Ok(vec![WasmValue::from_i32(
         Errno::__WASI_ERRNO_NOSYS.0 as i32,
@@ -895,11 +893,11 @@ pub fn path_link(
 pub fn path_open(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2, p3, p4, p5, p6, p7, p8, p9]) = args.get(0..9) {
         let dirfd = p1.to_i32();
@@ -934,7 +932,6 @@ pub fn path_open(
 pub fn path_readlink(
     _frame: CallingFrame,
     _args: Vec<WasmValue>,
-    _data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
     Ok(vec![WasmValue::from_i32(
         Errno::__WASI_ERRNO_NOSYS.0 as i32,
@@ -945,11 +942,11 @@ pub fn path_readlink(
 pub fn path_remove_directory(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2, p3]) = args.get(0..3) {
         let fd = p1.to_i32();
@@ -972,11 +969,11 @@ pub fn path_remove_directory(
 pub fn path_rename(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2, p3, p4, p5, p6]) = args.get(0..6) {
         let old_fd = p1.to_i32();
@@ -1005,7 +1002,6 @@ pub fn path_rename(
 pub fn path_symlink(
     _frame: CallingFrame,
     _args: Vec<WasmValue>,
-    _data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
     Ok(vec![WasmValue::from_i32(
         Errno::__WASI_ERRNO_NOSYS.0 as i32,
@@ -1016,11 +1012,11 @@ pub fn path_symlink(
 pub fn path_unlink_file(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2, p3]) = args.get(0..3) {
         let fd = p1.to_i32();
@@ -1043,11 +1039,11 @@ pub fn path_unlink_file(
 pub fn proc_exit(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1]) = args.get(0..1) {
         let code = p1.to_i32() as u32;
@@ -1062,7 +1058,6 @@ pub fn proc_exit(
 pub fn proc_raise(
     _frame: CallingFrame,
     _args: Vec<WasmValue>,
-    _data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
     Ok(vec![WasmValue::from_i32(
         Errno::__WASI_ERRNO_NOSYS.0 as i32,
@@ -1074,7 +1069,6 @@ pub fn proc_raise(
 pub fn sched_yield(
     _frame: CallingFrame,
     _args: Vec<WasmValue>,
-    _data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
     Ok(vec![WasmValue::from_i32(
         Errno::__WASI_ERRNO_NOSYS.0 as i32,
@@ -1087,11 +1081,11 @@ pub fn sched_yield(
 pub fn sock_open(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2, p3]) = args.get(0..3) {
         let af = p1.to_i32() as u8;
@@ -1114,11 +1108,11 @@ pub fn sock_open(
 pub fn sock_bind(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2, p3]) = args.get(0..3) {
         let fd = p1.to_i32();
@@ -1140,11 +1134,11 @@ pub fn sock_bind(
 pub fn sock_listen(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2]) = args.get(0..2) {
         let fd = p1.to_i32();
@@ -1379,11 +1373,11 @@ pub fn sock_shutdown(
 pub fn sock_getpeeraddr(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2, p3, p4]) = args.get(0..4) {
         let fd = p1.to_i32();
@@ -1407,11 +1401,11 @@ pub fn sock_getpeeraddr(
 pub fn sock_getlocaladdr(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2, p3, p4]) = args.get(0..4) {
         let fd = p1.to_i32();
@@ -1435,11 +1429,11 @@ pub fn sock_getlocaladdr(
 pub fn sock_getsockopt(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2, p3, p4, p5]) = args.get(0..5) {
         let fd = p1.to_i32();
@@ -1465,11 +1459,11 @@ pub fn sock_getsockopt(
 pub fn sock_setsockopt(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2, p3, p4, p5]) = args.get(0..5) {
         let fd = p1.to_i32();
@@ -1495,11 +1489,11 @@ pub fn sock_setsockopt(
 pub fn sock_getaddrinfo(
     frame: CallingFrame,
     args: Vec<WasmValue>,
-    data: Option<&'static mut WasiCtx>,
 ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-    let data = data.unwrap();
-
     let mut mem = frame.memory_mut(0).ok_or(HostFuncError::Runtime(0x88))?;
+
+    let mut instance = frame.module_instance().unwrap();
+    let data = instance.host_data().unwrap();
 
     if let Some([p1, p2, p3, p4, p5, p6, p7, p8]) = args.get(0..8) {
         let node = p1.to_i32() as usize;
@@ -1596,7 +1590,7 @@ pub async fn sock_lookup_ip(
 }
 
 pub enum WasiFunc<T: 'static> {
-    SyncFn(String, (Vec<ValType>, Vec<ValType>), HostFn<T>),
+    SyncFn(String, (Vec<ValType>, Vec<ValType>), HostFn),
     AsyncFn(String, (Vec<ValType>, Vec<ValType>), AsyncHostFn<T>),
 }
 
