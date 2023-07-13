@@ -4,12 +4,16 @@ use super::ffi;
 use crate::{
     instance::{module::InnerInstance, Function, Global, Memory, Table},
     types::WasmEdgeString,
-    utils, AsImport, Instance, WasmEdgeResult,
+    utils, AsImport, FuncType, Instance, WasmEdgeResult,
 };
 use parking_lot::Mutex;
 pub use paste::paste;
 use std::{ffi::CString, os::raw::c_void, sync::Arc};
 use wasmedge_types::error::{InstanceError, WasmEdgeError};
+use wasmedge_types::{
+    error::{FuncError, HostFuncError},
+    ValType,
+};
 
 /// Defines the APIs for loading plugins and check the basic information of the loaded plugins.
 #[derive(Debug)]
@@ -462,45 +466,40 @@ impl PluginDescriptor {
 
 #[derive(Debug)]
 pub(crate) struct InnerPluginInstance(pub(crate) *mut ffi::WasmEdge_ModuleInstanceContext);
-impl Into<*mut ffi::WasmEdge_ModuleInstanceContext> for InnerPluginInstance {
-    fn into(self) -> *mut ffi::WasmEdge_ModuleInstanceContext {
+impl InnerPluginInstance {
+    /// Provides a const raw pointer to the inner module instance context.
+    #[cfg(feature = "ffi")]
+    pub(crate) fn as_ptr(&self) -> *const ffi::WasmEdge_ModuleInstanceContext {
+        self.0 as *const _
+    }
+
+    /// Provides a mutable raw pointer to the inner module instance context.
+    #[cfg(feature = "ffi")]
+    pub(crate) fn as_mut_ptr(&mut self) -> *mut ffi::WasmEdge_ModuleInstanceContext {
         self.0
     }
 }
+// impl Drop for InnerPluginInstance {
+//     fn drop(&mut self) {
+//         dbg!("***** drop InnerPluginInstance");
+
+//         if !self.0.is_null() {
+//             unsafe {
+//                 ffi::WasmEdge_ModuleInstanceDelete(self.0);
+//             }
+//         }
+
+//         dbg!("***** InnerPluginInstance dropped");
+//     }
+// }
 
 /// Represents a Plugin module instance.
 #[derive(Debug)]
 pub struct PluginModule<T> {
     pub(crate) inner: InnerPluginInstance,
-    pub(crate) registered: bool,
     name: String,
     _host_data: Option<Box<T>>,
-    funcs: Vec<Function>,
-    memories: Vec<Memory>,
 }
-// impl<T> Drop for PluginModule<T> {
-//     fn drop(&mut self) {
-//         dbg!("***** drop PluginModule");
-
-//         if !self.registered && !self.inner.0.is_null() {
-//             unsafe {
-//                 ffi::WasmEdge_ModuleInstanceDelete(self.inner.0);
-//             }
-
-//             dbg!("*** start dropping the plugin host functions");
-//             dbg!(self.funcs.len());
-//             self.funcs.drain(..);
-//             dbg!("*** finish dropping the plugin host functions");
-
-//             dbg!("*** start dropping the registered memories");
-//             dbg!(self.memories.len());
-//             self.memories.drain(..);
-//             dbg!("*** finish dropping the registered memories");
-//         }
-
-//         dbg!("***** PluginModule dropped");
-//     }
-// }
 impl<T: Send + Sync> PluginModule<T> {
     /// Creates a module instance which is used to import host functions, tables, memories, and globals into a wasm module.
     ///
@@ -535,44 +534,54 @@ impl<T: Send + Sync> PluginModule<T> {
             ))),
             false => Ok(Self {
                 inner: InnerPluginInstance(ctx),
-                registered: false,
                 name: name.as_ref().to_string(),
                 _host_data: host_data,
-                funcs: Vec::new(),
-                memories: Vec::new(),
             }),
         }
     }
 
-    pub fn add_func(&mut self, name: impl AsRef<str>, func: Function) {
-        let func_name: WasmEdgeString = name.into();
-        unsafe {
-            ffi::WasmEdge_ModuleInstanceAddFunction(
-                self.inner.0,
-                func_name.as_raw(),
-                func.inner.lock().0,
-            );
+    pub fn name(&self) -> &str {
+        self.name.as_str()
+    }
+
+    pub fn add_func<D>(
+        &mut self,
+        name: impl AsRef<str>,
+        ty: &FuncType,
+        func: HostPluginFn<D>,
+    ) -> WasmEdgeResult<()> {
+        let fn_ctx = unsafe {
+            ffi::WasmEdge_FunctionInstanceCreateBinding(
+                ty.inner.0,
+                Some(wrap_sync_plugin_fn::<D>),
+                func as *mut _,
+                std::ptr::null_mut(),
+                0,
+            )
+        };
+
+        if fn_ctx.is_null() {
+            return Err(Box::new(WasmEdgeError::Func(FuncError::Create)));
         }
 
-        func.inner.lock().0 = std::ptr::null_mut();
+        let func_name: WasmEdgeString = name.into();
+        unsafe {
+            ffi::WasmEdge_ModuleInstanceAddFunction(self.inner.0, func_name.as_raw(), fn_ctx);
+        }
+
+        Ok(())
     }
 
     /// Provides a const raw pointer to the inner module instance context.
     #[cfg(feature = "ffi")]
     pub fn as_ptr(&self) -> *const ffi::WasmEdge_ModuleInstanceContext {
-        self.inner.0 as *const _
+        self.inner.as_ptr()
     }
 
     /// Provides a mutable raw pointer to the inner module instance context.
     #[cfg(feature = "ffi")]
     pub fn as_mut_ptr(&mut self) -> *mut ffi::WasmEdge_ModuleInstanceContext {
-        self.inner.0
-    }
-}
-
-impl<T: Send + Sync> Into<*mut ffi::WasmEdge_ModuleInstanceContext> for PluginModule<T> {
-    fn into(self) -> *mut ffi::WasmEdge_ModuleInstanceContext {
-        self.inner.into()
+        self.inner.as_mut_ptr()
     }
 }
 
@@ -601,7 +610,7 @@ pub const fn create_plugin<const N: usize>(
 }
 
 /// Creates a module descriptor.
-pub const fn create_module(
+pub const fn create_plugin_module(
     name: &'static str,
     desc: &'static str,
     module_producer: unsafe extern "C" fn(
@@ -647,7 +656,7 @@ macro_rules! register_plugin {
                     concat!($plugin_description, '\0'),
                     wasmedge_sys::plugin::generate_plugin_version($major,$minor,$patch,$build),
                     &[
-                        $(wasmedge_sys::plugin::create_module(
+                        $(wasmedge_sys::plugin::create_plugin_module(
                             concat!($module_name,'\0'),
                             concat!($module_description,'\0'),
                             {
@@ -668,6 +677,155 @@ macro_rules! register_plugin {
 }
 
 pub use register_plugin;
+
+use crate::{CallingFrame, WasmValue};
+use wasmedge_types::NeverType;
+
+/// Defines the signature of a host function.
+// #[cfg(all(feature = "async", target_os = "linux"))]
+pub type HostPluginFn<T> = fn(
+    CallingFrame,
+    Vec<WasmValue>,
+    Option<&'static mut T>,
+) -> Result<Vec<WasmValue>, HostFuncError>;
+
+extern "C" fn wrap_sync_plugin_fn<T: 'static>(
+    key_ptr: *mut c_void,
+    data: *mut std::os::raw::c_void,
+    call_frame_ctx: *const ffi::WasmEdge_CallingFrameContext,
+    params: *const ffi::WasmEdge_Value,
+    param_len: u32,
+    returns: *mut ffi::WasmEdge_Value,
+    return_len: u32,
+) -> ffi::WasmEdge_Result {
+    let frame = CallingFrame::create(call_frame_ctx);
+
+    // recover the async host function
+    let real_func: HostPluginFn<T> = unsafe { std::mem::transmute(key_ptr) };
+
+    // recover the context data
+    let data = if std::any::TypeId::of::<T>() == std::any::TypeId::of::<NeverType>() {
+        None
+    } else {
+        let data: &'static mut T = unsafe { &mut *(data as *mut T) };
+        Some(data)
+    };
+
+    // input arguments
+    let input = {
+        let raw_input = unsafe {
+            std::slice::from_raw_parts(
+                params,
+                param_len
+                    .try_into()
+                    .expect("len of params should not greater than usize"),
+            )
+        };
+        raw_input.iter().map(|r| (*r).into()).collect::<Vec<_>>()
+    };
+
+    // returns
+    let return_len = return_len
+        .try_into()
+        .expect("len of returns should not greater than usize");
+    let raw_returns = unsafe { std::slice::from_raw_parts_mut(returns, return_len) };
+
+    match real_func(frame, input, data) {
+        Ok(returns) => {
+            assert!(returns.len() == return_len, "[wasmedge-sys] check the number of returns of host function. Expected: {}, actual: {}", return_len, returns.len());
+            for (idx, wasm_value) in returns.into_iter().enumerate() {
+                raw_returns[idx] = wasm_value.as_raw();
+            }
+            ffi::WasmEdge_Result { Code: 0 }
+        }
+        Err(err) => match err {
+            HostFuncError::User(code) => unsafe {
+                ffi::WasmEdge_ResultGen(ffi::WasmEdge_ErrCategory_UserLevelError, code)
+            },
+            HostFuncError::Runtime(code) => unsafe {
+                ffi::WasmEdge_ResultGen(ffi::WasmEdge_ErrCategory_WASM, code)
+            },
+        },
+    }
+}
+
+/// Defines the signature of an asynchronous host function.
+// #[cfg(all(feature = "async", target_os = "linux"))]
+pub type AsyncPluginHostFn<T> =
+    fn(
+        CallingFrame,
+        Vec<WasmValue>,
+        Option<&'static mut T>,
+    ) -> Box<dyn std::future::Future<Output = Result<Vec<WasmValue>, HostFuncError>> + Send>;
+
+// extern "C" fn wrap_async_plugin_fn<T: 'static>(
+//     key_ptr: *mut c_void,
+//     data: *mut std::os::raw::c_void,
+//     call_frame_ctx: *const ffi::WasmEdge_CallingFrameContext,
+//     params: *const ffi::WasmEdge_Value,
+//     param_len: u32,
+//     returns: *mut ffi::WasmEdge_Value,
+//     return_len: u32,
+// ) -> ffi::WasmEdge_Result {
+//     let frame = CallingFrame::create(call_frame_ctx);
+
+//     // recover the async host function
+//     let real_func: AsyncPluginHostFn<T> = unsafe { std::mem::transmute(key_ptr) };
+
+//     // recover the context data
+//     let data = if std::any::TypeId::of::<T>() == std::any::TypeId::of::<NeverType>() {
+//         None
+//     } else {
+//         let data: &'static mut T = unsafe { &mut *(data as *mut T) };
+//         Some(data)
+//     };
+
+//     // arguments
+//     let input = {
+//         let raw_input = unsafe {
+//             std::slice::from_raw_parts(
+//                 params,
+//                 param_len
+//                     .try_into()
+//                     .expect("len of params should not greater than usize"),
+//             )
+//         };
+//         raw_input.iter().map(|r| (*r).into()).collect::<Vec<_>>()
+//     };
+
+//     // returns
+//     let return_len = return_len
+//         .try_into()
+//         .expect("len of returns should not greater than usize");
+//     let raw_returns = unsafe { std::slice::from_raw_parts_mut(returns, return_len) };
+
+//     let async_cx = crate::r#async::AsyncCx::new();
+//     let mut future = std::pin::Pin::from(real_func(frame, input, data));
+//     let result = match unsafe { async_cx.block_on(future.as_mut()) } {
+//         Ok(Ok(ret)) => Ok(ret),
+//         Ok(Err(err)) => Err(err),
+//         Err(_err) => Err(HostFuncError::User(0x87)),
+//     };
+
+//     // parse result
+//     match result {
+//         Ok(returns) => {
+//             assert!(returns.len() == return_len, "[wasmedge-sys] check the number of returns of async host function. Expected: {}, actual: {}", return_len, returns.len());
+//             for (idx, wasm_value) in returns.into_iter().enumerate() {
+//                 raw_returns[idx] = wasm_value.as_raw();
+//             }
+//             ffi::WasmEdge_Result { Code: 0 }
+//         }
+//         Err(err) => match err {
+//             HostFuncError::User(code) => unsafe {
+//                 ffi::WasmEdge_ResultGen(ffi::WasmEdge_ErrCategory_UserLevelError, code)
+//             },
+//             HostFuncError::Runtime(code) => unsafe {
+//                 ffi::WasmEdge_ResultGen(ffi::WasmEdge_ErrCategory_WASM, code)
+//             },
+//         },
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
