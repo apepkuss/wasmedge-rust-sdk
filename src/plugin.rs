@@ -1,7 +1,8 @@
 //! Defines plugin related structs.
 
 use crate::{
-    instance::Instance, io::WasmValTypeList, FuncType, Global, Memory, Table, WasmEdgeResult,
+    error::HostFuncError, instance::Instance, io::WasmValTypeList, CallingFrame, FuncType, Global,
+    Memory, Table, WasmEdgeResult, WasmValue,
 };
 use wasmedge_sys::{self as sys, AsImport};
 pub mod ffi {
@@ -9,8 +10,6 @@ pub mod ffi {
         WasmEdge_ModuleDescriptor, WasmEdge_ModuleInstanceContext, WasmEdge_PluginDescriptor,
     };
 }
-
-use crate::{error::HostFuncError, CallingFrame, WasmValue};
 
 /// Defines the API to manage plugins.
 #[derive(Debug)]
@@ -223,14 +222,14 @@ impl PluginVersion {
 /// [Create a simple math plugin](https://github.com/second-state/wasmedge-rustsdk-examples/tree/main/simple-plugin)
 ///
 #[derive(Debug, Default)]
-pub struct PluginModuleBuilder<T: Send + Sync + Clone> {
+pub struct PluginModuleBuilder<T: Send + Sync> {
     funcs: Vec<(String, sys::Function)>,
     globals: Vec<(String, sys::Global)>,
     memories: Vec<(String, sys::Memory)>,
     tables: Vec<(String, sys::Table)>,
     host_data: Option<Box<T>>,
 }
-impl<T: Send + Sync + Clone> PluginModuleBuilder<T> {
+impl<T: Send + Sync> PluginModuleBuilder<T> {
     /// Creates a new [PluginModuleBuilder].
     pub fn new() -> Self {
         Self {
@@ -413,9 +412,9 @@ impl<T: Send + Sync + Clone> PluginModuleBuilder<T> {
 /// Defines an import object that contains the required import data used when instantiating a [module](crate::Module).
 ///
 /// An [PluginModule] instance is created with [PluginModuleBuilder](crate::plugin::PluginModuleBuilder).
-#[derive(Debug, Clone)]
-pub struct PluginModule<T: Send + Sync + Clone>(pub(crate) sys::plugin::PluginModule<T>);
-impl<T: Send + Sync + Clone> PluginModule<T> {
+#[derive(Debug)]
+pub struct PluginModule<T: Send + Sync>(pub(crate) sys::plugin::PluginModule<T>);
+impl<T: Send + Sync> PluginModule<T> {
     /// Returns the name of the plugin module instance.
     pub fn name(&self) -> &str {
         self.0.name()
