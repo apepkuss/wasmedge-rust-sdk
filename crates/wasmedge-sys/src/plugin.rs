@@ -7,6 +7,7 @@ use crate::{
     utils, AsImport, Instance, WasmEdgeResult,
 };
 use parking_lot::Mutex;
+pub use paste::paste;
 use std::{ffi::CString, os::raw::c_void, sync::Arc};
 use wasmedge_types::error::{InstanceError, WasmEdgeError};
 
@@ -459,40 +460,48 @@ impl PluginDescriptor {
     }
 }
 
+#[derive(Debug)]
+pub(crate) struct InnerPluginInstance(pub(crate) *mut ffi::WasmEdge_ModuleInstanceContext);
+impl Into<*mut ffi::WasmEdge_ModuleInstanceContext> for InnerPluginInstance {
+    fn into(self) -> *mut ffi::WasmEdge_ModuleInstanceContext {
+        self.0
+    }
+}
+
 /// Represents a Plugin module instance.
-#[derive(Debug, Clone)]
-pub struct PluginModule<T: Send + Sync + Clone> {
-    pub(crate) inner: Arc<InnerInstance>,
+#[derive(Debug)]
+pub struct PluginModule<T> {
+    pub(crate) inner: InnerPluginInstance,
     pub(crate) registered: bool,
     name: String,
     _host_data: Option<Box<T>>,
     funcs: Vec<Function>,
     memories: Vec<Memory>,
 }
-impl<T: Send + Sync + Clone> Drop for PluginModule<T> {
-    fn drop(&mut self) {
-        dbg!("***** drop PluginModule");
+// impl<T> Drop for PluginModule<T> {
+//     fn drop(&mut self) {
+//         dbg!("***** drop PluginModule");
 
-        if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
-            unsafe {
-                ffi::WasmEdge_ModuleInstanceDelete(self.inner.0);
-            }
+//         if !self.registered && !self.inner.0.is_null() {
+//             unsafe {
+//                 ffi::WasmEdge_ModuleInstanceDelete(self.inner.0);
+//             }
 
-            dbg!("*** start dropping the plugin host functions");
-            dbg!(self.funcs.len());
-            self.funcs.drain(..);
-            dbg!("*** finish dropping the plugin host functions");
+//             dbg!("*** start dropping the plugin host functions");
+//             dbg!(self.funcs.len());
+//             self.funcs.drain(..);
+//             dbg!("*** finish dropping the plugin host functions");
 
-            dbg!("*** start dropping the registered memories");
-            dbg!(self.memories.len());
-            self.memories.drain(..);
-            dbg!("*** finish dropping the registered memories");
-        }
+//             dbg!("*** start dropping the registered memories");
+//             dbg!(self.memories.len());
+//             self.memories.drain(..);
+//             dbg!("*** finish dropping the registered memories");
+//         }
 
-        dbg!("***** PluginModule dropped");
-    }
-}
-impl<T: Send + Sync + Clone> PluginModule<T> {
+//         dbg!("***** PluginModule dropped");
+//     }
+// }
+impl<T: Send + Sync> PluginModule<T> {
     /// Creates a module instance which is used to import host functions, tables, memories, and globals into a wasm module.
     ///
     /// # Argument
@@ -525,7 +534,7 @@ impl<T: Send + Sync + Clone> PluginModule<T> {
                 InstanceError::CreateImportModule,
             ))),
             false => Ok(Self {
-                inner: std::sync::Arc::new(InnerInstance(ctx)),
+                inner: InnerPluginInstance(ctx),
                 registered: false,
                 name: name.as_ref().to_string(),
                 _host_data: host_data,
@@ -535,67 +544,35 @@ impl<T: Send + Sync + Clone> PluginModule<T> {
         }
     }
 
-    /// Provides a raw pointer to the inner module instance context.
-    #[cfg(feature = "ffi")]
-    pub fn as_raw_ptr(&self) -> *const ffi::WasmEdge_ModuleInstanceContext {
-        self.inner.0 as *const _
-    }
-}
-impl<T: Send + Sync + Clone> AsImport for PluginModule<T> {
-    fn name(&self) -> &str {
-        self.name.as_str()
-    }
-
-    fn add_func(&mut self, name: impl AsRef<str>, func: Function) {
-        self.funcs.push(func);
-        let f = self.funcs.last_mut().unwrap();
-
+    pub fn add_func(&mut self, name: impl AsRef<str>, func: Function) {
         let func_name: WasmEdgeString = name.into();
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddFunction(
                 self.inner.0,
                 func_name.as_raw(),
-                f.inner.lock().0,
+                func.inner.lock().0,
             );
         }
+
+        func.inner.lock().0 = std::ptr::null_mut();
     }
 
-    fn add_table(&mut self, name: impl AsRef<str>, table: Table) {
-        let table_name: WasmEdgeString = name.as_ref().into();
-        unsafe {
-            ffi::WasmEdge_ModuleInstanceAddTable(
-                self.inner.0,
-                table_name.as_raw(),
-                table.inner.lock().0,
-            );
-        }
-        table.inner.lock().0 = std::ptr::null_mut();
+    /// Provides a const raw pointer to the inner module instance context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_ModuleInstanceContext {
+        self.inner.0 as *const _
     }
 
-    fn add_memory(&mut self, name: impl AsRef<str>, memory: Memory) {
-        self.memories.push(memory);
-        let memory = self.memories.last_mut().unwrap();
-
-        let mem_name: WasmEdgeString = name.as_ref().into();
-        unsafe {
-            ffi::WasmEdge_ModuleInstanceAddMemory(
-                self.inner.0,
-                mem_name.as_raw(),
-                memory.inner.lock().0,
-            );
-        }
+    /// Provides a mutable raw pointer to the inner module instance context.
+    #[cfg(feature = "ffi")]
+    pub fn as_mut_ptr(&mut self) -> *mut ffi::WasmEdge_ModuleInstanceContext {
+        self.inner.0
     }
+}
 
-    fn add_global(&mut self, name: impl AsRef<str>, global: Global) {
-        let global_name: WasmEdgeString = name.as_ref().into();
-        unsafe {
-            ffi::WasmEdge_ModuleInstanceAddGlobal(
-                self.inner.0,
-                global_name.as_raw(),
-                global.inner.lock().0,
-            );
-        }
-        global.inner.lock().0 = std::ptr::null_mut();
+impl<T: Send + Sync> Into<*mut ffi::WasmEdge_ModuleInstanceContext> for PluginModule<T> {
+    fn into(self) -> *mut ffi::WasmEdge_ModuleInstanceContext {
+        self.inner.into()
     }
 }
 
@@ -604,9 +581,96 @@ unsafe extern "C" fn host_data_finalizer<T: Sized + Send>(raw: *mut ::std::os::r
     drop(host_data);
 }
 
+/// Creates a plugin descriptor.
+pub const fn create_plugin<const N: usize>(
+    name: &'static str,
+    desc: &'static str,
+    version: ffi::WasmEdge_PluginVersionData,
+    modules: &'static [ffi::WasmEdge_ModuleDescriptor; N],
+) -> ffi::WasmEdge_PluginDescriptor {
+    ffi::WasmEdge_PluginDescriptor {
+        Name: name.as_ptr().cast(),
+        Description: desc.as_ptr().cast(),
+        APIVersion: ffi::WasmEdge_Plugin_CurrentAPIVersion,
+        Version: version,
+        ModuleCount: N as u32,
+        ModuleDescriptions: modules as *const _ as *mut _,
+        ProgramOptionCount: 0,
+        ProgramOptions: std::ptr::null_mut(),
+    }
+}
+
+/// Creates a module descriptor.
+pub const fn create_module(
+    name: &'static str,
+    desc: &'static str,
+    module_producer: unsafe extern "C" fn(
+        arg1: *const ffi::WasmEdge_ModuleDescriptor,
+    ) -> *mut ffi::WasmEdge_ModuleInstanceContext,
+) -> ffi::WasmEdge_ModuleDescriptor {
+    ffi::WasmEdge_ModuleDescriptor {
+        Name: name.as_ptr().cast(),
+        Description: desc.as_ptr().cast(),
+        Create: Some(module_producer),
+    }
+}
+
+/// Generates a plugin version.
+pub const fn generate_plugin_version(
+    major: u32,
+    minor: u32,
+    patch: u32,
+    build: u32,
+) -> ffi::WasmEdge_PluginVersionData {
+    ffi::WasmEdge_PluginVersionData {
+        Major: major,
+        Minor: minor,
+        Patch: patch,
+        Build: build,
+    }
+}
+
+#[macro_export]
+macro_rules! register_plugin {
+
+    (
+        plugin_name=$plugin_name:expr,
+        plugin_description=$plugin_description:expr,
+        version=($major:expr, $minor: expr, $patch: expr, $build: expr),
+        modules= [$({$module_name:expr,$module_description:expr,$module_create_fn:ident}),*]) => {
+
+        wasmedge_sys::plugin::paste! {
+            #[export_name = "WasmEdge_Plugin_GetDescriptor"]
+            pub extern "C" fn plugin_hook() -> *const wasmedge_sys::ffi::WasmEdge_PluginDescriptor {
+                const DESC: *const wasmedge_sys::ffi::WasmEdge_PluginDescriptor = &wasmedge_sys::plugin::create_plugin(
+                    concat!($plugin_name, '\0'),
+                    concat!($plugin_description, '\0'),
+                    wasmedge_sys::plugin::generate_plugin_version($major,$minor,$patch,$build),
+                    &[
+                        $(wasmedge_sys::plugin::create_module(
+                            concat!($module_name,'\0'),
+                            concat!($module_description,'\0'),
+                            {
+                                unsafe extern "C" fn [<wasmedge_wrap_ $module_create_fn>]  (
+                                    _arg: *const wasmedge_sys::ffi::WasmEdge_ModuleDescriptor,
+                                ) -> *mut wasmedge_sys::ffi::WasmEdge_ModuleInstanceContext {
+                                    $module_create_fn().as_mut_ptr()
+                                }
+                                [<wasmedge_wrap_ $module_create_fn>]
+                            },
+                        )),*
+                    ],
+                );
+                DESC as *const _
+            }
+        }
+    };
+}
+
+pub use register_plugin;
+
 #[cfg(test)]
 mod tests {
-
     #[cfg(all(
         target_os = "linux",
         feature = "wasmedge_process",

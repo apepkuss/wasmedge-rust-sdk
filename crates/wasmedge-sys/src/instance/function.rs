@@ -671,10 +671,16 @@ impl Function {
 }
 impl Drop for Function {
     fn drop(&mut self) {
+        dbg!("drop Function");
+        dbg!(Arc::strong_count(&self.inner));
+        dbg!(self.registered);
+
         if !self.registered && Arc::strong_count(&self.inner) == 1 {
             // remove the real_func from HOST_FUNCS
             let footprint = self.inner.lock().0 as usize;
             if let Some(key) = HOST_FUNC_FOOTPRINTS.lock().remove(&footprint) {
+                dbg!("update HOST_FUNCS");
+
                 let mut map_host_func = HOST_FUNCS.write();
                 if map_host_func.contains_key(&key) {
                     map_host_func.remove(&key).expect(
@@ -697,6 +703,7 @@ impl Drop for Function {
 
             // delete the function instance
             if !self.inner.lock().0.is_null() {
+                dbg!("free function instance ptr");
                 unsafe { ffi::WasmEdge_FunctionInstanceDelete(self.inner.lock().0) };
             }
         }
