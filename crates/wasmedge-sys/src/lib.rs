@@ -59,9 +59,9 @@ pub mod ast_module;
 #[doc(hidden)]
 #[cfg(all(feature = "async", target_os = "linux"))]
 pub mod r#async;
-#[doc(hidden)]
-#[cfg(all(feature = "async", target_os = "linux"))]
-pub mod async_wasi;
+// #[doc(hidden)]
+// #[cfg(all(feature = "async", target_os = "linux"))]
+// pub mod async_wasi;
 #[doc(hidden)]
 #[cfg(feature = "aot")]
 pub mod compiler;
