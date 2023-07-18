@@ -180,7 +180,7 @@ pub type CustomFnWrapper = unsafe extern "C" fn(
 ) -> ffi::WasmEdge_Result;
 
 // Wrapper function for thread-safe scenarios.
-extern "C" fn wrap_fn(
+pub(crate) extern "C" fn wrap_fn(
     key_ptr: *mut c_void,
     data: *mut std::os::raw::c_void,
     call_frame_ctx: *const ffi::WasmEdge_CallingFrameContext,
@@ -240,7 +240,7 @@ extern "C" fn wrap_fn(
 
 // Wrapper function for thread-safe scenarios.
 #[cfg(all(feature = "async", target_os = "linux"))]
-extern "C" fn wrap_async_fn(
+pub(crate) extern "C" fn wrap_async_fn(
     key_ptr: *mut c_void,
     data: *mut std::os::raw::c_void,
     call_frame_ctx: *const ffi::WasmEdge_CallingFrameContext,
@@ -384,7 +384,7 @@ impl Function {
         cost: u64,
     ) -> WasmEdgeResult<Self> {
         let data = match data {
-            Some(d) => Box::into_raw(d) as *mut std::ffi::c_void,
+            Some(mut d) => d.as_mut() as *mut T as *mut c_void, // Box::into_raw(d) as *mut std::ffi::c_void,
             None => std::ptr::null_mut(),
         };
 
@@ -931,8 +931,7 @@ unsafe impl Sync for InnerFuncRef {}
 mod tests {
     use super::*;
     use crate::{
-        types::WasmValue, AsImport, Executor, ImportModule, ImportObject, Store,
-        HOST_FUNC_FOOTPRINTS,
+        types::WasmValue, Executor, ImportModule, ImportObject, Store, HOST_FUNC_FOOTPRINTS,
     };
     #[cfg(all(feature = "async", target_os = "linux"))]
     use crate::{AsyncWasiModule, ASYNC_HOST_FUNCS};
@@ -1002,7 +1001,7 @@ mod tests {
 
     #[test]
     fn test_func_basic() {
-        #[derive(Debug)]
+        #[derive(Debug, Clone)]
         struct Data<T, S> {
             _x: i32,
             _y: String,
@@ -1016,15 +1015,17 @@ mod tests {
             _s: vec!["macos", "linux", "windows"],
         };
 
-        fn real_add<T: core::fmt::Debug>(
-            _frame: CallingFrame,
+        fn real_add<T: core::fmt::Debug + Send + Sync + Clone>(
+            frame: CallingFrame,
             input: Vec<WasmValue>,
-            data: *mut std::ffi::c_void,
+            _data: *mut std::ffi::c_void,
         ) -> Result<Vec<WasmValue>, HostFuncError> {
             println!("Rust: Entering Rust function real_add");
 
-            let host_data = unsafe { Box::from_raw(data as *mut T) };
-            println!("host_data: {:?}", host_data);
+            let mut instance = frame
+                .module_instance()
+                .expect("failed to get module instance");
+            let _host_data = instance.host_data::<T>().expect("failed to get host data");
 
             if input.len() != 2 {
                 return Err(HostFuncError::User(1));
@@ -1310,25 +1311,20 @@ mod tests {
                 Ok(vec![WasmValue::from_i32(c)])
             };
 
-            // create a FuncType
-            let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
-            assert!(result.is_ok());
-            let func_ty = result.unwrap();
-
-            // create a host function from the closure defined above
-            let result =
-                Function::create_sync_func::<NeverType>(&func_ty, Box::new(real_add), None, 0);
-            assert!(result.is_ok());
-            let host_func = result.unwrap();
-
             // create a Store
             let result = Store::create();
             assert!(result.is_ok());
             let mut store = result.unwrap();
 
             // create an ImportModule
-            let mut import = ImportModule::create::<NeverType>("extern", None)?;
-            import.add_func("add", host_func);
+            let mut import = ImportModule::<NeverType>::create("extern", None)?;
+
+            // add function to the import module
+            let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+            assert!(result.is_ok());
+            let func_ty = result.unwrap();
+            let result = import.add_func_new("add", &func_ty, Box::new(real_add), 0);
+            assert!(result.is_ok());
             let extern_import = ImportObject::Import(import);
 
             // run this function
@@ -1390,38 +1386,14 @@ mod tests {
         assert!(result.is_ok());
         let func_ty = result.unwrap();
 
-        // create a host function
-        let result = Function::create_sync_func::<NeverType>(&func_ty, Box::new(real_add), None, 0);
-        assert!(result.is_ok());
-        let host_func = result.unwrap();
-
-        assert_eq!(Arc::strong_count(&host_func.inner), 1);
-        assert!(!host_func.registered);
-
-        assert_eq!(HOST_FUNCS.read().len(), 1);
-        assert_eq!(HOST_FUNC_FOOTPRINTS.lock().len(), 1);
-
-        // clone the host function before adding it to the import object
-        let host_func_cloned = host_func.clone();
-
-        assert_eq!(Arc::strong_count(&host_func_cloned.inner), 2);
-        assert!(!host_func_cloned.registered);
-
-        assert_eq!(HOST_FUNCS.read().len(), 1);
-        assert_eq!(HOST_FUNC_FOOTPRINTS.lock().len(), 1);
+        assert_eq!(HOST_FUNCS.read().len(), 0);
+        assert_eq!(HOST_FUNC_FOOTPRINTS.lock().len(), 0);
 
         // create an ImportModule
-        let mut import_module = ImportModule::create::<NeverType>("extern", None)?;
+        let mut import_module = ImportModule::<NeverType>::create("extern", None)?;
         // add the host function to the import module
-        import_module.add_func("add", host_func);
-
-        assert_eq!(Arc::strong_count(&host_func_cloned.inner), 2);
-        assert!(!host_func_cloned.registered);
-
-        assert_eq!(HOST_FUNCS.read().len(), 1);
-        assert_eq!(HOST_FUNC_FOOTPRINTS.lock().len(), 1);
-
-        drop(host_func_cloned);
+        let result = import_module.add_func_new("add", &func_ty, Box::new(real_add), 0);
+        assert!(result.is_ok());
 
         assert_eq!(HOST_FUNCS.read().len(), 1);
         assert_eq!(HOST_FUNC_FOOTPRINTS.lock().len(), 1);
@@ -1503,11 +1475,123 @@ mod tests {
         Ok(())
     }
 
+    // #[cfg(all(feature = "async", target_os = "linux"))]
+    // #[tokio::test]
+    // async fn test_func_async_closure() -> Result<(), Box<dyn std::error::Error>> {
+    //     {
+    //         #[derive(Debug)]
+    //         struct Data<T, S> {
+    //             _x: i32,
+    //             _y: String,
+    //             _v: Vec<T>,
+    //             _s: Vec<S>,
+    //         }
+    //         impl<T, S> Drop for Data<T, S> {
+    //             fn drop(&mut self) {
+    //                 println!("Dropping Data");
+    //             }
+    //         }
+
+    //         let data: Data<i32, &str> = Data {
+    //             _x: 12,
+    //             _y: "hello".to_string(),
+    //             _v: vec![1, 2, 3],
+    //             _s: vec!["macos", "linux", "windows"],
+    //         };
+
+    //         // define an async closure
+    //         let c = |_frame: CallingFrame,
+    //                  _args: Vec<WasmValue>,
+    //                  data: *mut std::os::raw::c_void|
+    //          -> Box<
+    //             (dyn std::future::Future<Output = Result<Vec<WasmValue>, HostFuncError>> + Send),
+    //         > {
+    //             // let host_data = unsafe { &mut *(data as *mut Data<i32, &str>) };
+    //             let host_data = unsafe { Box::from_raw(data as *mut Data<i32, &str>) };
+
+    //             Box::new(async move {
+    //                 for _ in 0..10 {
+    //                     println!("[async hello] say hello");
+    //                     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
+    //                     println!("host_data: {:?}", host_data);
+    //                 }
+
+    //                 println!("[async hello] Done!");
+
+    //                 Ok(vec![])
+    //             })
+    //         };
+
+    //         // create a FuncType
+    //         let result = FuncType::create(vec![], vec![]);
+    //         assert!(result.is_ok());
+    //         let func_ty = result.unwrap();
+
+    //         // create an async host function
+    //         let result =
+    //             Function::create_async_func(&func_ty, Box::new(c), Some(Box::new(data)), 0);
+    //         assert!(result.is_ok());
+    //         let async_hello_func = result.unwrap();
+
+    //         // create an Executor
+    //         let result = Executor::create(None, None);
+    //         assert!(result.is_ok());
+    //         let mut executor = result.unwrap();
+    //         assert!(!executor.inner.0.is_null());
+
+    //         // create a Store
+    //         let result = Store::create();
+    //         assert!(result.is_ok());
+    //         let mut store = result.unwrap();
+
+    //         // create an AsyncWasiModule
+    //         let result = AsyncWasiModule::create(Some(vec!["abc"]), Some(vec![("a", "1")]), None);
+    //         assert!(result.is_ok());
+    //         let async_wasi_module = result.unwrap();
+
+    //         // register async_wasi module into the store
+    //         let wasi_import = ImportObject::AsyncWasi(async_wasi_module);
+    //         let result = executor.register_import_object(&mut store, &wasi_import);
+    //         assert!(result.is_ok());
+
+    //         // create an ImportModule
+    //         let mut import = ImportModule::create::<NeverType>("extern", None)?;
+    //         import.add_func("async_hello", async_hello_func);
+
+    //         let extern_import = ImportObject::Import(import);
+    //         executor.register_import_object(&mut store, &extern_import)?;
+
+    //         let extern_instance = store.module("extern")?;
+    //         let async_hello = extern_instance.get_func("async_hello")?;
+
+    //         async fn tick() {
+    //             let mut i = 0;
+    //             loop {
+    //                 println!("[tick] i={i}");
+    //                 tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    //                 i += 1;
+    //             }
+    //         }
+    //         tokio::spawn(tick());
+
+    //         let async_state = AsyncState::new();
+    //         let _ = executor
+    //             .call_func_async(&async_state, &async_hello, [])
+    //             .await?;
+    //     }
+
+    //     assert_eq!(ASYNC_HOST_FUNCS.read().len(), 0);
+    //     assert_eq!(HOST_FUNC_FOOTPRINTS.lock().len(), 0);
+
+    //     Ok(())
+    // }
+
     #[cfg(all(feature = "async", target_os = "linux"))]
     #[tokio::test]
     async fn test_func_async_closure() -> Result<(), Box<dyn std::error::Error>> {
         {
-            #[derive(Debug)]
+            #[derive(Debug, Clone)]
             struct Data<T, S> {
                 _x: i32,
                 _y: String,
@@ -1534,8 +1618,7 @@ mod tests {
              -> Box<
                 (dyn std::future::Future<Output = Result<Vec<WasmValue>, HostFuncError>> + Send),
             > {
-                // let host_data = unsafe { &mut *(data as *mut Data<i32, &str>) };
-                let host_data = unsafe { Box::from_raw(data as *mut Data<i32, &str>) };
+                let host_data = unsafe { &mut *(data as *mut Data<i32, &str>) };
 
                 Box::new(async move {
                     for _ in 0..10 {
@@ -1550,17 +1633,6 @@ mod tests {
                     Ok(vec![])
                 })
             };
-
-            // create a FuncType
-            let result = FuncType::create(vec![], vec![]);
-            assert!(result.is_ok());
-            let func_ty = result.unwrap();
-
-            // create an async host function
-            let result =
-                Function::create_async_func(&func_ty, Box::new(c), Some(Box::new(data)), 0);
-            assert!(result.is_ok());
-            let async_hello_func = result.unwrap();
 
             // create an Executor
             let result = Executor::create(None, None);
@@ -1579,13 +1651,19 @@ mod tests {
             let async_wasi_module = result.unwrap();
 
             // register async_wasi module into the store
-            let wasi_import = ImportObject::AsyncWasi(async_wasi_module);
+            let wasi_import = ImportObject::<NeverType>::AsyncWasi(async_wasi_module);
             let result = executor.register_import_object(&mut store, &wasi_import);
             assert!(result.is_ok());
 
             // create an ImportModule
-            let mut import = ImportModule::create::<NeverType>("extern", None)?;
-            import.add_func("async_hello", async_hello_func);
+            let mut import = ImportModule::create("extern", Some(Box::new(data)))?;
+
+            // add async function to the import module
+            let result = FuncType::create(vec![], vec![]);
+            assert!(result.is_ok());
+            let func_ty = result.unwrap();
+            let result = import.add_async_func("async_hello", &func_ty, Box::new(c), 0);
+            assert!(result.is_ok());
 
             let extern_import = ImportObject::Import(import);
             executor.register_import_object(&mut store, &extern_import)?;
@@ -1619,7 +1697,7 @@ mod tests {
     #[tokio::test]
     async fn test_func_async_func() -> Result<(), Box<dyn std::error::Error>> {
         {
-            #[derive(Debug)]
+            #[derive(Debug, Clone)]
             struct Data<T, S> {
                 _x: i32,
                 _y: String,
@@ -1634,13 +1712,15 @@ mod tests {
             };
 
             // define async host function
-            fn f<T: core::fmt::Debug + Send + Sync + 'static>(
+            fn f(
                 _frame: CallingFrame,
                 _args: Vec<WasmValue>,
                 data: *mut std::ffi::c_void,
             ) -> Box<(dyn std::future::Future<Output = Result<Vec<WasmValue>, HostFuncError>> + Send)>
             {
-                let data = unsafe { Box::from_raw(data as *mut T) };
+                // let data = unsafe { Box::from_raw(data as *mut T) };
+
+                let data = unsafe { &mut *(data as *mut Data<i32, &str>) };
 
                 Box::new(async move {
                     for _ in 0..10 {
@@ -1655,20 +1735,15 @@ mod tests {
                 })
             }
 
-            // create a FuncType
-            let result = FuncType::create(vec![], vec![]);
-            assert!(result.is_ok());
-            let func_ty = result.unwrap();
-
-            // create an async host function
-            let result = Function::create_async_func(
-                &func_ty,
-                Box::new(f::<Data<i32, &str>>),
-                Some(Box::new(data)),
-                0,
-            );
-            assert!(result.is_ok());
-            let async_hello_func = result.unwrap();
+            // // create an async host function
+            // let result = Function::create_async_func(
+            //     &func_ty,
+            //     Box::new(f::<Data<i32, &str>>),
+            //     Some(Box::new(data)),
+            //     0,
+            // );
+            // assert!(result.is_ok());
+            // let async_hello_func = result.unwrap();
 
             // create an Executor
             let result = Executor::create(None, None);
@@ -1687,13 +1762,21 @@ mod tests {
             let async_wasi_module = result.unwrap();
 
             // register async_wasi module into the store
-            let wasi_import = ImportObject::AsyncWasi(async_wasi_module);
+            let wasi_import = ImportObject::<NeverType>::AsyncWasi(async_wasi_module);
             let result = executor.register_import_object(&mut store, &wasi_import);
             assert!(result.is_ok());
 
             // create an ImportModule
-            let mut import = ImportModule::create::<NeverType>("extern", None)?;
-            import.add_func("async_hello", async_hello_func);
+            let mut import = ImportModule::create("extern", Some(Box::new(data)))?;
+
+            // add async function to the import module
+
+            // create a FuncType
+            let result = FuncType::create(vec![], vec![]);
+            assert!(result.is_ok());
+            let func_ty = result.unwrap();
+            let result = import.add_async_func("async_hello", &func_ty, Box::new(f), 0);
+            assert!(result.is_ok());
 
             let extern_import = ImportObject::Import(import);
             executor.register_import_object(&mut store, &extern_import)?;

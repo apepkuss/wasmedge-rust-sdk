@@ -19,8 +19,8 @@
 
 use wasmedge_macro::sys_host_function;
 use wasmedge_sys::{
-    AsImport, CallingFrame, Config, Executor, FuncType, Function, ImportModule, ImportObject,
-    Loader, Store, Validator, WasmValue,
+    CallingFrame, Config, Executor, FuncType, ImportModule, ImportObject, Loader, Store, Validator,
+    WasmValue,
 };
 use wasmedge_types::{error::HostFuncError, wat2wasm, NeverType, ValType};
 
@@ -53,15 +53,14 @@ fn real_add(_frame: CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue
 
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // create an ImportObject module
+    let mut import = ImportModule::<NeverType>::create("extern_module", None)?;
+
     let func_ty = FuncType::create(
         vec![ValType::ExternRef, ValType::I32, ValType::I32],
         vec![ValType::I32],
     )?;
-    let host_func = Function::create_sync_func::<NeverType>(&func_ty, Box::new(real_add), None, 0)?;
-
-    // create an ImportObject module
-    let mut import = ImportModule::create::<NeverType>("extern_module", None)?;
-    import.add_func("add", host_func);
+    import.add_func_new("add", &func_ty, Box::new(real_add), 0)?;
 
     // create a config
     let config = Config::create()?;

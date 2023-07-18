@@ -3,19 +3,26 @@
 #[cfg(all(feature = "async", target_os = "linux"))]
 use crate::{
     async_wasi::{wasi_impls, WasiFunc},
-    WasiCtx,
+    instance::function::wrap_async_fn,
+    BoxedAsyncFn, WasiCtx, ASYNC_HOST_FUNCS,
 };
 use crate::{
     ffi,
-    instance::{function::InnerFunc, global::InnerGlobal, memory::InnerMemory, table::InnerTable},
+    instance::{
+        function::{wrap_fn, FuncType, Function, InnerFunc},
+        global::{Global, GlobalType, InnerGlobal},
+        memory::{InnerMemory, MemType, Memory},
+        table::{InnerTable, Table, TableType},
+    },
     types::WasmEdgeString,
-    Function, Global, Memory, Table, WasmEdgeResult,
+    BoxedFn, WasmEdgeResult, WasmValue, HOST_FUNCS, HOST_FUNC_FOOTPRINTS,
 };
 use parking_lot::Mutex;
+use rand::Rng;
 #[cfg(all(feature = "async", target_os = "linux"))]
 use std::path::PathBuf;
 use std::sync::Arc;
-use wasmedge_types::error::{InstanceError, WasmEdgeError};
+use wasmedge_types::error::{FuncError, InstanceError, WasmEdgeError};
 
 /// An [Instance] represents an instantiated module. In the instantiation process, An [Instance] is created from al[Module](crate::Module). From an [Instance] the exported [functions](crate::Function), [tables](crate::Table), [memories](crate::Memory), and [globals](crate::Global) can be fetched.
 #[derive(Debug)]
@@ -388,13 +395,14 @@ pub trait AsInstance {
 
 /// An [ImportModule] represents a host module with a name. A host module consists of one or more host [function](crate::Function), [table](crate::Table), [memory](crate::Memory), and [global](crate::Global) instances,  which are defined outside wasm modules and fed into wasm modules as imports.
 #[derive(Debug, Clone)]
-pub struct ImportModule {
+pub struct ImportModule<T: Send + Sync + Clone> {
     pub(crate) inner: Arc<InnerInstance>,
     pub(crate) registered: bool,
     name: String,
     funcs: Vec<Function>,
+    host_data: Option<Box<T>>,
 }
-impl Drop for ImportModule {
+impl<T: Send + Sync + Clone> Drop for ImportModule<T> {
     fn drop(&mut self) {
         if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
             // free the module instance
@@ -407,7 +415,7 @@ impl Drop for ImportModule {
         }
     }
 }
-impl ImportModule {
+impl<T: Send + Sync + Clone> ImportModule<T> {
     /// Creates a module instance which is used to import host functions, tables, memories, and globals into a wasm module.
     ///
     /// # Argument
@@ -419,54 +427,94 @@ impl ImportModule {
     /// # Error
     ///
     /// If fail to create the import module instance, then an error is returned.
-    pub fn create<T: Send + Sync>(
-        name: impl AsRef<str>,
-        host_data: Option<Box<T>>,
-    ) -> WasmEdgeResult<Self> {
+    pub fn create(name: impl AsRef<str>, host_data: Option<Box<T>>) -> WasmEdgeResult<Self> {
         let raw_name = WasmEdgeString::from(name.as_ref());
 
-        let ctx = match host_data {
+        let mut import = Self {
+            inner: std::sync::Arc::new(InnerInstance(std::ptr::null_mut())),
+            registered: false,
+            name: name.as_ref().to_string(),
+            funcs: Vec::new(),
+            host_data,
+        };
+
+        let ctx = match &mut import.host_data {
             Some(boxed_data) => {
-                let p = Box::into_raw(boxed_data);
-                unsafe {
-                    ffi::WasmEdge_ModuleInstanceCreateWithData(
-                        raw_name.as_raw(),
-                        p as *mut std::ffi::c_void,
-                        Some(host_data_finalizer::<T>),
-                    )
-                }
+                let p = boxed_data.as_mut() as *mut T as *mut std::ffi::c_void;
+                unsafe { ffi::WasmEdge_ModuleInstanceCreateWithData(raw_name.as_raw(), p, None) }
             }
             None => unsafe { ffi::WasmEdge_ModuleInstanceCreate(raw_name.as_raw()) },
         };
 
-        match ctx.is_null() {
-            true => Err(Box::new(WasmEdgeError::Instance(
+        if ctx.is_null() {
+            return Err(Box::new(WasmEdgeError::Instance(
                 InstanceError::CreateImportModule,
-            ))),
-            false => Ok(Self {
-                inner: std::sync::Arc::new(InnerInstance(ctx)),
-                registered: false,
-                name: name.as_ref().to_string(),
-                funcs: Vec::new(),
-            }),
+            )));
         }
+
+        import.inner = std::sync::Arc::new(InnerInstance(ctx));
+
+        Ok(import)
     }
 
-    /// Provides a raw pointer to the inner module instance context.
-    #[cfg(feature = "ffi")]
-    pub fn as_ptr(&self) -> *const ffi::WasmEdge_ModuleInstanceContext {
-        self.inner.0 as *const _
-    }
-}
-impl AsImport for ImportModule {
-    fn name(&self) -> &str {
+    pub fn name(&self) -> &str {
         self.name.as_str()
     }
 
-    fn add_func(&mut self, name: impl AsRef<str>, func: Function) {
+    pub fn add_func_new(
+        &mut self,
+        name: impl AsRef<str>,
+        ty: &FuncType,
+        real_fn: BoxedFn,
+        cost: u64,
+    ) -> WasmEdgeResult<()> {
+        // create host function
+        let func = {
+            let data = match &mut self.host_data {
+                Some(boxed_data) => boxed_data.as_mut() as *mut T as *mut std::ffi::c_void,
+                None => std::ptr::null_mut(),
+            };
+
+            let mut map_host_func = HOST_FUNCS.write();
+
+            // generate key for the coming host function
+            let mut rng = rand::thread_rng();
+            let mut key: usize = rng.gen();
+            while map_host_func.contains_key(&key) {
+                key = rng.gen();
+            }
+            map_host_func.insert(key, Arc::new(Mutex::new(real_fn)));
+            drop(map_host_func);
+
+            let ctx = unsafe {
+                ffi::WasmEdge_FunctionInstanceCreateBinding(
+                    ty.inner.0,
+                    Some(wrap_fn),
+                    key as *const usize as *mut std::ffi::c_void,
+                    data,
+                    cost,
+                )
+            };
+
+            // create a footprint for the host function
+            let footprint = ctx as usize;
+            let mut footprint_to_id = HOST_FUNC_FOOTPRINTS.lock();
+            footprint_to_id.insert(footprint, key);
+
+            if ctx.is_null() {
+                return Err(Box::new(WasmEdgeError::Func(FuncError::Create)));
+            }
+
+            Function {
+                inner: Arc::new(Mutex::new(InnerFunc(ctx))),
+                registered: false,
+            }
+        };
+
         self.funcs.push(func);
         let f = self.funcs.last_mut().unwrap();
 
+        // add host function to the import module instance
         let func_name: WasmEdgeString = name.into();
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddFunction(
@@ -477,9 +525,84 @@ impl AsImport for ImportModule {
         }
 
         // ! Notice that, `f.inner.lock().0` is not set to null here as the pointer will be used in `Function::drop`.
+
+        Ok(())
     }
 
-    fn add_table(&mut self, name: impl AsRef<str>, table: Table) {
+    #[cfg(all(feature = "async", target_os = "linux"))]
+    pub fn add_async_func(
+        &mut self,
+        name: impl AsRef<str>,
+        ty: &FuncType,
+        real_fn: BoxedAsyncFn,
+        cost: u64,
+    ) -> WasmEdgeResult<()> {
+        // create host function
+        let func = {
+            let data = match &mut self.host_data {
+                Some(boxed_data) => boxed_data.as_mut() as *mut T as *mut std::ffi::c_void,
+                None => std::ptr::null_mut(),
+            };
+
+            let mut map_host_func = ASYNC_HOST_FUNCS.write();
+
+            // generate key for the coming host function
+            let mut rng = rand::thread_rng();
+            let mut key: usize = rng.gen();
+            while map_host_func.contains_key(&key) {
+                key = rng.gen();
+            }
+            map_host_func.insert(key, Arc::new(Mutex::new(real_fn)));
+            drop(map_host_func);
+
+            let ctx = unsafe {
+                ffi::WasmEdge_FunctionInstanceCreateBinding(
+                    ty.inner.0,
+                    Some(wrap_async_fn),
+                    key as *const usize as *mut std::ffi::c_void,
+                    data,
+                    cost,
+                )
+            };
+
+            // create a footprint for the host function
+            let footprint = ctx as usize;
+            let mut footprint_to_id = HOST_FUNC_FOOTPRINTS.lock();
+            footprint_to_id.insert(footprint, key);
+
+            if ctx.is_null() {
+                return Err(Box::new(WasmEdgeError::Func(FuncError::Create)));
+            }
+
+            Function {
+                inner: Arc::new(Mutex::new(InnerFunc(ctx))),
+                registered: false,
+            }
+        };
+
+        self.funcs.push(func);
+        let f = self.funcs.last_mut().unwrap();
+
+        // add host function to the import module instance
+        let func_name: WasmEdgeString = name.into();
+        unsafe {
+            ffi::WasmEdge_ModuleInstanceAddFunction(
+                self.inner.0,
+                func_name.as_raw(),
+                f.inner.lock().0,
+            );
+        }
+
+        // ! Notice that, `f.inner.lock().0` is not set to null here as the pointer will be used in `Function::drop`.
+
+        Ok(())
+    }
+
+    pub fn add_table_new(&mut self, name: impl AsRef<str>, ty: &TableType) -> WasmEdgeResult<()> {
+        // create Table instance
+        let table = Table::create(ty)?;
+
+        // add table to the import module instance
         let table_name: WasmEdgeString = name.as_ref().into();
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddTable(
@@ -490,9 +613,43 @@ impl AsImport for ImportModule {
         }
 
         table.inner.lock().0 = std::ptr::null_mut();
+
+        Ok(())
     }
 
-    fn add_memory(&mut self, name: impl AsRef<str>, memory: Memory) {
+    pub fn add_table_with_data(
+        &mut self,
+        name: impl AsRef<str>,
+        ty: &TableType,
+        idx: u32,
+        data: WasmValue,
+    ) -> WasmEdgeResult<()> {
+        // create Table instance
+        let mut table = Table::create(ty)?;
+
+        // set data at the given index
+        table.set_data(data, idx)?;
+
+        // add table to the import module instance
+        let table_name: WasmEdgeString = name.as_ref().into();
+        unsafe {
+            ffi::WasmEdge_ModuleInstanceAddTable(
+                self.inner.0,
+                table_name.as_raw(),
+                table.inner.lock().0,
+            );
+        }
+
+        table.inner.lock().0 = std::ptr::null_mut();
+
+        Ok(())
+    }
+
+    pub fn add_memory_new(&mut self, name: impl AsRef<str>, ty: &MemType) -> WasmEdgeResult<()> {
+        // create Memory instance
+        let memory = Memory::create(ty)?;
+
+        // add memory to the import module instance
         let mem_name: WasmEdgeString = name.as_ref().into();
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddMemory(
@@ -502,9 +659,20 @@ impl AsImport for ImportModule {
             );
         }
         memory.inner.lock().0 = std::ptr::null_mut();
+
+        Ok(())
     }
 
-    fn add_global(&mut self, name: impl AsRef<str>, global: Global) {
+    pub fn add_global_new(
+        &mut self,
+        name: impl AsRef<str>,
+        ty: &GlobalType,
+        val: WasmValue,
+    ) -> WasmEdgeResult<()> {
+        // create Global instance
+        let global = Global::create(ty, val)?;
+
+        // add global to the import module instance
         let global_name: WasmEdgeString = name.as_ref().into();
         unsafe {
             ffi::WasmEdge_ModuleInstanceAddGlobal(
@@ -514,8 +682,74 @@ impl AsImport for ImportModule {
             );
         }
         global.inner.lock().0 = std::ptr::null_mut();
+
+        Ok(())
+    }
+
+    /// Provides a raw pointer to the inner module instance context.
+    #[cfg(feature = "ffi")]
+    pub fn as_ptr(&self) -> *const ffi::WasmEdge_ModuleInstanceContext {
+        self.inner.0 as *const _
     }
 }
+// impl<T: Send + Sync + Clone> AsImport for ImportModule<T> {
+//     fn name(&self) -> &str {
+//         self.name.as_str()
+//     }
+
+//     fn add_func(&mut self, name: impl AsRef<str>, func: Function) {
+//         self.funcs.push(func);
+//         let f = self.funcs.last_mut().unwrap();
+
+//         let func_name: WasmEdgeString = name.into();
+//         unsafe {
+//             ffi::WasmEdge_ModuleInstanceAddFunction(
+//                 self.inner.0,
+//                 func_name.as_raw(),
+//                 f.inner.lock().0,
+//             );
+//         }
+
+//         // ! Notice that, `f.inner.lock().0` is not set to null here as the pointer will be used in `Function::drop`.
+//     }
+
+//     fn add_table(&mut self, name: impl AsRef<str>, table: Table) {
+//         let table_name: WasmEdgeString = name.as_ref().into();
+//         unsafe {
+//             ffi::WasmEdge_ModuleInstanceAddTable(
+//                 self.inner.0,
+//                 table_name.as_raw(),
+//                 table.inner.lock().0,
+//             );
+//         }
+
+//         table.inner.lock().0 = std::ptr::null_mut();
+//     }
+
+//     fn add_memory(&mut self, name: impl AsRef<str>, memory: Memory) {
+//         let mem_name: WasmEdgeString = name.as_ref().into();
+//         unsafe {
+//             ffi::WasmEdge_ModuleInstanceAddMemory(
+//                 self.inner.0,
+//                 mem_name.as_raw(),
+//                 memory.inner.lock().0,
+//             );
+//         }
+//         memory.inner.lock().0 = std::ptr::null_mut();
+//     }
+
+//     fn add_global(&mut self, name: impl AsRef<str>, global: Global) {
+//         let global_name: WasmEdgeString = name.as_ref().into();
+//         unsafe {
+//             ffi::WasmEdge_ModuleInstanceAddGlobal(
+//                 self.inner.0,
+//                 global_name.as_raw(),
+//                 global.inner.lock().0,
+//             );
+//         }
+//         global.inner.lock().0 = std::ptr::null_mut();
+//     }
+// }
 
 /// A [WasiModule] is a module instance for the WASI specification.
 #[cfg(not(feature = "async"))]
@@ -1414,9 +1648,9 @@ pub trait AsImport {
 
 /// Defines three types of module instances that can be imported into a WasmEdge [Store](crate::Store) instance.
 #[derive(Debug, Clone)]
-pub enum ImportObject {
+pub enum ImportObject<T: Send + Sync + Clone> {
     /// Defines the import module instance of ImportModule type.
-    Import(ImportModule),
+    Import(ImportModule<T>),
     /// Defines the import module instance of WasiModule type.
     #[cfg(not(feature = "async"))]
     Wasi(WasiModule),
@@ -1424,7 +1658,7 @@ pub enum ImportObject {
     #[cfg(all(feature = "async", target_os = "linux"))]
     AsyncWasi(AsyncWasiModule),
 }
-impl ImportObject {
+impl<T: Send + Sync + Clone> ImportObject<T> {
     /// Returns the name of the import object.
     pub fn name(&self) -> &str {
         match self {
@@ -1479,7 +1713,7 @@ mod tests {
         let host_name = "extern";
 
         // create an import module
-        let result = ImportModule::create::<NeverType>(host_name, None);
+        let result = ImportModule::<NeverType>::create(host_name, None);
         assert!(result.is_ok());
         let mut import = result.unwrap();
 
@@ -1487,15 +1721,13 @@ mod tests {
         let result = FuncType::create([ValType::ExternRef, ValType::I32], [ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create_sync_func::<NeverType>(&func_ty, Box::new(real_add), None, 0);
-        assert!(result.is_ok());
 
-        assert_eq!(HOST_FUNCS.read().len(), 1);
-        assert_eq!(HOST_FUNC_FOOTPRINTS.lock().len(), 1);
+        assert_eq!(HOST_FUNCS.read().len(), 0);
+        assert_eq!(HOST_FUNC_FOOTPRINTS.lock().len(), 0);
 
-        let host_func = result.unwrap();
         // add the host function
-        import.add_func("func-add", host_func);
+        let result = import.add_func_new("func-add", &func_ty, Box::new(real_add), 0);
+        assert!(result.is_ok());
 
         assert_eq!(HOST_FUNCS.read().len(), 1);
         assert_eq!(HOST_FUNC_FOOTPRINTS.lock().len(), 1);
@@ -1504,31 +1736,25 @@ mod tests {
         let result = TableType::create(RefType::FuncRef, 10, Some(20));
         assert!(result.is_ok());
         let table_ty = result.unwrap();
-        let result = Table::create(&table_ty);
-        assert!(result.is_ok());
-        let host_table = result.unwrap();
         // add the table
-        import.add_table("table", host_table);
+        let result = import.add_table_new("table", &table_ty);
+        assert!(result.is_ok());
 
         // create a memory
         let result = MemType::create(1, Some(2), false);
         assert!(result.is_ok());
         let mem_ty = result.unwrap();
-        let result = Memory::create(&mem_ty);
-        assert!(result.is_ok());
-        let host_memory = result.unwrap();
         // add the memory
-        import.add_memory("memory", host_memory);
+        let result = import.add_memory_new("memory", &mem_ty);
+        assert!(result.is_ok());
 
         // create a global
         let result = GlobalType::create(ValType::I32, Mutability::Const);
         assert!(result.is_ok());
         let global_ty = result.unwrap();
-        let result = Global::create(&global_ty, WasmValue::from_i32(666));
-        assert!(result.is_ok());
-        let host_global = result.unwrap();
         // add the global
-        import.add_global("global_i32", host_global);
+        let result = import.add_global_new("global_i32", &global_ty, WasmValue::from_i32(666));
+        assert!(result.is_ok());
     }
 
     #[test]
@@ -1537,7 +1763,7 @@ mod tests {
         let host_name = "extern";
 
         // create an ImportModule instance
-        let result = ImportModule::create::<NeverType>(host_name, None);
+        let result = ImportModule::<NeverType>::create(host_name, None);
         assert!(result.is_ok());
         let import = result.unwrap();
 
@@ -1556,7 +1782,7 @@ mod tests {
         let host_name = "extern";
 
         // create an ImportModule instance
-        let result = ImportModule::create::<NeverType>(host_name, None);
+        let result = ImportModule::<NeverType>::create(host_name, None);
         assert!(result.is_ok());
         let mut import = result.unwrap();
 
@@ -1564,39 +1790,29 @@ mod tests {
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create_sync_func::<NeverType>(&func_ty, Box::new(real_add), None, 0);
+        let result = import.add_func_new("add", &func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
-        let host_func = result.unwrap();
-        import.add_func("add", host_func);
 
         // add table
         let result = TableType::create(RefType::FuncRef, 0, Some(u32::MAX));
         assert!(result.is_ok());
         let ty = result.unwrap();
-        let result = Table::create(&ty);
+        let result = import.add_table_new("table", &ty);
         assert!(result.is_ok());
-        let table = result.unwrap();
-        import.add_table("table", table);
 
         // add memory
-        let memory = {
-            let result = MemType::create(10, Some(20), false);
-            assert!(result.is_ok());
-            let mem_ty = result.unwrap();
-            let result = Memory::create(&mem_ty);
-            assert!(result.is_ok());
-            result.unwrap()
-        };
-        import.add_memory("memory", memory);
+        let result = MemType::create(10, Some(20), false);
+        assert!(result.is_ok());
+        let mem_ty = result.unwrap();
+        let result = import.add_memory_new("memory", &mem_ty);
+        assert!(result.is_ok());
 
         // add globals
         let result = GlobalType::create(ValType::F32, Mutability::Const);
         assert!(result.is_ok());
         let ty = result.unwrap();
-        let result = Global::create(&ty, WasmValue::from_f32(3.5));
+        let result = import.add_global_new("global", &ty, WasmValue::from_f32(3.5));
         assert!(result.is_ok());
-        let global = result.unwrap();
-        import.add_global("global", global);
 
         let import = ImportObject::Import(import);
         let import = Arc::new(Mutex::new(import));
@@ -1706,7 +1922,7 @@ mod tests {
         let module_name = "extern_module";
 
         // create ImportModule instance
-        let result = ImportModule::create::<NeverType>(module_name, None);
+        let result = ImportModule::<NeverType>::create(module_name, None);
         assert!(result.is_ok());
         let mut import = result.unwrap();
 
@@ -1714,37 +1930,29 @@ mod tests {
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create_sync_func::<NeverType>(&func_ty, Box::new(real_add), None, 0);
+        let result = import.add_func_new("add", &func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
-        let host_func = result.unwrap();
-        import.add_func("add", host_func);
 
         // add table
         let result = TableType::create(RefType::FuncRef, 0, Some(u32::MAX));
         assert!(result.is_ok());
         let ty = result.unwrap();
-        let result = Table::create(&ty);
+        let result = import.add_table_new("table", &ty);
         assert!(result.is_ok());
-        let table = result.unwrap();
-        import.add_table("table", table);
 
         // add memory
         let result = MemType::create(0, Some(u32::MAX), false);
         assert!(result.is_ok());
         let mem_ty = result.unwrap();
-        let result = Memory::create(&mem_ty);
+        let result: Result<(), Box<WasmEdgeError>> = import.add_memory_new("mem", &mem_ty);
         assert!(result.is_ok());
-        let memory = result.unwrap();
-        import.add_memory("mem", memory);
 
         // add global
         let result = GlobalType::create(ValType::F32, Mutability::Const);
         assert!(result.is_ok());
         let ty = result.unwrap();
-        let result = Global::create(&ty, WasmValue::from_f32(3.5));
+        let result = import.add_global_new("global", &ty, WasmValue::from_f32(3.5));
         assert!(result.is_ok());
-        let global = result.unwrap();
-        import.add_global("global", global);
 
         // create an executor
         let mut executor = Executor::create(None, None)?;
@@ -1829,7 +2037,7 @@ mod tests {
         let module_name = "extern_module";
 
         // create ImportModule instance
-        let result = ImportModule::create::<NeverType>(module_name, None);
+        let result = ImportModule::<NeverType>::create(module_name, None);
         assert!(result.is_ok());
         let mut import = result.unwrap();
 
@@ -1837,37 +2045,29 @@ mod tests {
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create_sync_func::<NeverType>(&func_ty, Box::new(real_add), None, 0);
+        let result = import.add_func_new("add", &func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
-        let host_func = result.unwrap();
-        import.add_func("add", host_func);
 
         // add table
         let result = TableType::create(RefType::FuncRef, 0, Some(u32::MAX));
         assert!(result.is_ok());
         let ty = result.unwrap();
-        let result = Table::create(&ty);
+        let result = import.add_table_new("table", &ty);
         assert!(result.is_ok());
-        let table = result.unwrap();
-        import.add_table("table", table);
 
         // add memory
         let result = MemType::create(0, Some(u32::MAX), false);
         assert!(result.is_ok());
         let mem_ty = result.unwrap();
-        let result = Memory::create(&mem_ty);
+        let result = import.add_memory_new("mem", &mem_ty);
         assert!(result.is_ok());
-        let memory = result.unwrap();
-        import.add_memory("mem", memory);
 
         // add global
         let result = GlobalType::create(ValType::F32, Mutability::Const);
         assert!(result.is_ok());
         let ty = result.unwrap();
-        let result = Global::create(&ty, WasmValue::from_f32(3.5));
+        let result = import.add_global_new("global", &ty, WasmValue::from_f32(3.5));
         assert!(result.is_ok());
-        let global = result.unwrap();
-        import.add_global("global", global);
 
         // create an executor
         let mut executor = Executor::create(None, None)?;
@@ -1927,7 +2127,7 @@ mod tests {
         assert!(store.module_names().is_none());
 
         // create ImportObject instance
-        let result = ImportModule::create::<NeverType>(module_name, None);
+        let result = ImportModule::<NeverType>::create(module_name, None);
         assert!(result.is_ok());
         let mut import = result.unwrap();
 
@@ -1935,39 +2135,29 @@ mod tests {
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create_sync_func::<NeverType>(&func_ty, Box::new(real_add), None, 0);
+        let result = import.add_func_new("add", &func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
-        let host_func = result.unwrap();
-        import.add_func("add", host_func);
 
         // add table
         let result = TableType::create(RefType::FuncRef, 0, Some(u32::MAX));
         assert!(result.is_ok());
         let ty = result.unwrap();
-        let result = Table::create(&ty);
+        let result = import.add_table_new("table", &ty);
         assert!(result.is_ok());
-        let table = result.unwrap();
-        import.add_table("table", table);
 
         // add memory
-        let memory = {
-            let result = MemType::create(10, Some(20), false);
-            assert!(result.is_ok());
-            let mem_ty = result.unwrap();
-            let result = Memory::create(&mem_ty);
-            assert!(result.is_ok());
-            result.unwrap()
-        };
-        import.add_memory("mem", memory);
+        let result = MemType::create(10, Some(20), false);
+        assert!(result.is_ok());
+        let mem_ty = result.unwrap();
+        let result = import.add_memory_new("mem", &mem_ty);
+        assert!(result.is_ok());
 
         // add globals
         let result = GlobalType::create(ValType::F32, Mutability::Const);
         assert!(result.is_ok());
         let ty = result.unwrap();
-        let result = Global::create(&ty, WasmValue::from_f32(3.5));
+        let result = import.add_global_new("global", &ty, WasmValue::from_f32(3.5));
         assert!(result.is_ok());
-        let global = result.unwrap();
-        import.add_global("global", global);
 
         let result = Config::create();
         assert!(result.is_ok());
@@ -2033,7 +2223,7 @@ mod tests {
             let host_name = "extern";
 
             // create an import module
-            let result = ImportModule::create::<NeverType>(host_name, None);
+            let result = ImportModule::<NeverType>::create(host_name, None);
             assert!(result.is_ok());
             let mut import = result.unwrap();
 
@@ -2041,42 +2231,33 @@ mod tests {
             let result = FuncType::create([ValType::ExternRef, ValType::I32], [ValType::I32]);
             assert!(result.is_ok());
             let func_ty = result.unwrap();
-            let result =
-                Function::create_sync_func::<NeverType>(&func_ty, Box::new(real_add), None, 0);
-            assert!(result.is_ok());
-            let host_func = result.unwrap();
             // add the host function
-            import.add_func("func-add", host_func);
+            let result = import.add_func_new("func-add", &func_ty, Box::new(real_add), 0);
+            assert!(result.is_ok());
 
             // create a table
             let result = TableType::create(RefType::FuncRef, 10, Some(20));
             assert!(result.is_ok());
             let table_ty = result.unwrap();
-            let result = Table::create(&table_ty);
-            assert!(result.is_ok());
-            let host_table = result.unwrap();
             // add the table
-            import.add_table("table", host_table);
+            let result = import.add_table_new("table", &table_ty);
+            assert!(result.is_ok());
 
             // create a memory
             let result = MemType::create(1, Some(2), false);
             assert!(result.is_ok());
             let mem_ty = result.unwrap();
-            let result = Memory::create(&mem_ty);
-            assert!(result.is_ok());
-            let host_memory = result.unwrap();
             // add the memory
-            import.add_memory("memory", host_memory);
+            let result = import.add_memory_new("memory", &mem_ty);
+            assert!(result.is_ok());
 
             // create a global
             let result = GlobalType::create(ValType::I32, Mutability::Const);
             assert!(result.is_ok());
             let global_ty = result.unwrap();
-            let result = Global::create(&global_ty, WasmValue::from_i32(666));
-            assert!(result.is_ok());
-            let host_global = result.unwrap();
             // add the global
-            import.add_global("global_i32", host_global);
+            let result = import.add_global_new("global_i32", &global_ty, WasmValue::from_i32(666));
+            assert!(result.is_ok());
             assert_eq!(Arc::strong_count(&import.inner), 1);
 
             // clone the import module
@@ -2142,12 +2323,79 @@ mod tests {
             radius: i32,
         }
 
+        fn real_add<T: core::fmt::Debug + Send + Sync + Clone>(
+            frame: CallingFrame,
+            input: Vec<WasmValue>,
+            _data: *mut std::ffi::c_void,
+        ) -> Result<Vec<WasmValue>, HostFuncError> {
+            println!("[real_add] Rust: Entering Rust function real_add");
+
+            let mut instance = frame
+                .module_instance()
+                .expect("failed to get module instance");
+            let host_data = instance.host_data::<T>().expect("failed to get host data");
+            println!("[real_add] host_data: {:?}", host_data);
+
+            if input.len() != 2 {
+                return Err(HostFuncError::User(1));
+            }
+
+            let a = if input[0].ty() == ValType::I32 {
+                input[0].to_i32()
+            } else {
+                return Err(HostFuncError::User(2));
+            };
+
+            let b = if input[1].ty() == ValType::I32 {
+                input[1].to_i32()
+            } else {
+                return Err(HostFuncError::User(3));
+            };
+
+            let c = a + b;
+            println!("[real_add] Rust: calcuating in real_add c: {c:?}");
+
+            println!("[real_add] Rust: Leaving Rust function real_add");
+            Ok(vec![WasmValue::from_i32(c)])
+        }
+
+        fn hello(
+            frame: CallingFrame,
+            _input: Vec<WasmValue>,
+            _data: *mut std::ffi::c_void,
+        ) -> Result<Vec<WasmValue>, HostFuncError> {
+            println!("[hello] hello");
+
+            let mut instance = frame
+                .module_instance()
+                .expect("failed to get module instance");
+            let circle = instance
+                .host_data::<Circle>()
+                .expect("failed to get host data");
+            println!("[hello] radius: {}", circle.radius);
+
+            Ok(vec![])
+        }
+
         let circle = Circle { radius: 10 };
+
         // create an import module
         let result = ImportModule::create(module_name, Some(Box::new(circle)));
-
         assert!(result.is_ok());
-        let import = result.unwrap();
+        let mut import = result.unwrap();
+
+        // add function to the import module
+        let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+        assert!(result.is_ok());
+        let func_ty = result.unwrap();
+        let result = import.add_func_new("add", &func_ty, Box::new(real_add::<Circle>), 0);
+        assert!(result.is_ok());
+
+        let result = FuncType::create(vec![], vec![]);
+        assert!(result.is_ok());
+        let hello_ty = result.unwrap();
+        let result = import.add_func_new("hello", &hello_ty, Box::new(hello), 0);
+        assert!(result.is_ok());
 
         let result = Config::create();
         assert!(result.is_ok());
@@ -2172,5 +2420,19 @@ mod tests {
         assert!(result.is_some());
         let host_data = result.unwrap();
         assert_eq!(host_data.radius, 10);
+
+        let fn_add = instance.get_func("add").unwrap();
+        let fn_hello = instance.get_func("hello").unwrap();
+
+        let result = executor.call_func(
+            &fn_add,
+            vec![WasmValue::from_i32(1), WasmValue::from_i32(2)],
+        );
+        assert!(result.is_ok());
+        let returns = result.unwrap();
+        println!("returns: {:?}", returns);
+
+        let result = executor.call_func(&fn_hello, vec![]);
+        assert!(result.is_ok());
     }
 }

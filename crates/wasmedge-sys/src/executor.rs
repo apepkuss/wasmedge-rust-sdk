@@ -67,10 +67,10 @@ impl Executor {
     /// # Error
     ///
     /// If fail to register the given [import object](crate::ImportObject), then an error is returned.
-    pub fn register_import_object(
+    pub fn register_import_object<T: Send + Sync + Clone>(
         &mut self,
         store: &mut Store,
-        import: &ImportObject,
+        import: &ImportObject<T>,
     ) -> WasmEdgeResult<()> {
         match import {
             ImportObject::Import(import) => unsafe {
@@ -368,8 +368,8 @@ mod tests {
     #[cfg(all(feature = "async", target_os = "linux"))]
     use crate::{instance::module::AsyncWasiModule, Loader, Validator};
     use crate::{
-        AsImport, CallingFrame, Config, FuncType, Function, Global, GlobalType, ImportModule,
-        MemType, Memory, Statistics, Table, TableType, HOST_FUNCS, HOST_FUNC_FOOTPRINTS,
+        CallingFrame, Config, FuncType, GlobalType, ImportModule, MemType, Statistics, TableType,
+        HOST_FUNCS, HOST_FUNC_FOOTPRINTS,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -432,7 +432,7 @@ mod tests {
 
     #[test]
     #[allow(clippy::assertions_on_result_states)]
-    fn test_executor_register_import() {
+    fn test_executor_register_import() -> Result<(), Box<dyn std::error::Error>> {
         // create an Executor
         let result = Executor::create(None, None);
         assert!(result.is_ok());
@@ -446,7 +446,7 @@ mod tests {
 
         // create an ImportObj module
         let host_name = "extern";
-        let result = ImportModule::create::<NeverType>(host_name, None);
+        let result = ImportModule::<NeverType>::create(host_name, None);
         assert!(result.is_ok());
         let mut import = result.unwrap();
 
@@ -457,41 +457,29 @@ mod tests {
         let result = FuncType::create([ValType::ExternRef, ValType::I32], [ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create_sync_func::<NeverType>(&func_ty, Box::new(real_add), None, 0);
-        assert!(result.is_ok());
-        let host_func = result.unwrap();
         // add the function into the import_obj module
-        import.add_func("func-add", host_func);
+        import.add_func_new("func-add", &func_ty, Box::new(real_add), 0)?;
 
         // create a Table instance
         let result = TableType::create(RefType::FuncRef, 10, Some(20));
         assert!(result.is_ok());
         let table_ty = result.unwrap();
-        let result = Table::create(&table_ty);
-        assert!(result.is_ok());
-        let host_table = result.unwrap();
         // add the table into the import_obj module
-        import.add_table("table", host_table);
+        import.add_table_new("table", &table_ty)?;
 
         // create a Memory instance
         let result = MemType::create(1, Some(2), false);
         assert!(result.is_ok());
         let mem_ty = result.unwrap();
-        let result = Memory::create(&mem_ty);
-        assert!(result.is_ok());
-        let host_memory = result.unwrap();
         // add the memory into the import_obj module
-        import.add_memory("memory", host_memory);
+        import.add_memory_new("memory", &mem_ty)?;
 
         // create a Global instance
         let result = GlobalType::create(ValType::I32, Mutability::Const);
         assert!(result.is_ok());
         let global_ty = result.unwrap();
-        let result = Global::create(&global_ty, WasmValue::from_i32(666));
-        assert!(result.is_ok());
-        let host_global = result.unwrap();
         // add the global into import_obj module
-        import.add_global("global_i32", host_global);
+        import.add_global_new("global_i32", &global_ty, WasmValue::from_i32(666))?;
 
         let import = ImportObject::Import(import);
 
@@ -521,6 +509,8 @@ mod tests {
         });
 
         handle.join().unwrap();
+
+        Ok(())
     }
 
     #[test]
@@ -601,7 +591,7 @@ mod tests {
         let async_wasi_module = result.unwrap();
 
         // register async_wasi module into the store
-        let wasi_import = ImportObject::AsyncWasi(async_wasi_module);
+        let wasi_import = ImportObject::<NeverType>::AsyncWasi(async_wasi_module);
         let result = executor.register_import_object(&mut store, &wasi_import);
         assert!(result.is_ok());
 
@@ -675,15 +665,16 @@ mod tests {
         let async_wasi_module = result.unwrap();
 
         // register async_wasi module into the store
-        let wasi_import = ImportObject::AsyncWasi(async_wasi_module);
+        let wasi_import = ImportObject::<NeverType>::AsyncWasi(async_wasi_module);
         let result = executor.register_import_object(&mut store, &wasi_import);
         assert!(result.is_ok());
 
+        // create an import module
+        let mut import = ImportModule::<NeverType>::create("extern", None)?;
+
+        // add async function to the import module
         let ty = FuncType::create([], [])?;
-        let async_hello_func =
-            Function::create_async_func::<NeverType>(&ty, Box::new(async_hello), None, 0)?;
-        let mut import = ImportModule::create::<NeverType>("extern", None)?;
-        import.add_func("async_hello", async_hello_func);
+        import.add_async_func("async_hello", &ty, Box::new(async_hello), 0)?;
 
         let extern_import = ImportObject::Import(import);
         executor.register_import_object(&mut store, &extern_import)?;

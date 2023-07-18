@@ -2,8 +2,8 @@
 use wasmedge_macro::sys_host_function;
 #[cfg(feature = "aot")]
 use wasmedge_sys::{
-    AsImport, CallingFrame, Compiler, Config, Executor, FuncType, Function, ImportModule,
-    ImportObject, Loader, Store, Validator, WasmValue,
+    CallingFrame, Compiler, Config, Executor, FuncType, ImportModule, ImportObject, Loader, Store,
+    Validator, WasmValue,
 };
 #[cfg(feature = "aot")]
 use wasmedge_types::{
@@ -86,9 +86,9 @@ fn test_aot() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[cfg(feature = "aot")]
-fn create_spec_test_module() -> ImportModule {
+fn create_spec_test_module() -> ImportModule<NeverType> {
     // create an ImportObj module
-    let result = ImportModule::create::<NeverType>("spectest", None);
+    let result = ImportModule::<NeverType>::create("spectest", None);
     assert!(result.is_ok());
     let mut import = result.unwrap();
 
@@ -96,12 +96,10 @@ fn create_spec_test_module() -> ImportModule {
     let result = FuncType::create([], []);
     assert!(result.is_ok());
     let func_ty = result.unwrap();
-    let result =
-        Function::create_sync_func::<NeverType>(&func_ty, Box::new(spec_test_print), None, 0);
-    assert!(result.is_ok());
-    let host_func = result.unwrap();
     // add host function "print"
-    import.add_func("print", host_func);
+    let result = import.add_func_new("print", &func_ty, Box::new(spec_test_print), 0);
+    assert!(result.is_ok());
+
     import
 }
 

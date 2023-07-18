@@ -126,10 +126,10 @@ unsafe impl Sync for InnerStore {}
 mod tests {
     use super::Store;
     use crate::{
-        instance::{Function, Global, GlobalType, MemType, Memory, Table, TableType},
+        instance::{GlobalType, MemType, TableType},
         types::WasmValue,
-        AsImport, CallingFrame, Config, Engine, Executor, FuncType, ImportModule, ImportObject,
-        Loader, Validator,
+        CallingFrame, Config, Engine, Executor, FuncType, ImportModule, ImportObject, Loader,
+        Validator,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -140,7 +140,7 @@ mod tests {
 
     #[test]
     #[allow(clippy::assertions_on_result_states)]
-    fn test_store_basic() {
+    fn test_store_basic() -> Result<(), Box<dyn std::error::Error>> {
         let module_name = "extern_module";
 
         let result = Store::create();
@@ -154,7 +154,7 @@ mod tests {
         assert!(store.module_names().is_none());
 
         // create ImportObject instance
-        let result = ImportModule::create::<NeverType>(module_name, None);
+        let result = ImportModule::<NeverType>::create(module_name, None);
         assert!(result.is_ok());
         let mut import = result.unwrap();
 
@@ -162,39 +162,25 @@ mod tests {
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create_sync_func::<NeverType>(&func_ty, Box::new(real_add), None, 0);
-        assert!(result.is_ok());
-        let host_func = result.unwrap();
-        import.add_func("add", host_func);
+        import.add_func_new("add", &func_ty, Box::new(real_add), 0)?;
 
         // add table
         let result = TableType::create(RefType::FuncRef, 0, Some(u32::MAX));
         assert!(result.is_ok());
         let ty = result.unwrap();
-        let result = Table::create(&ty);
-        assert!(result.is_ok());
-        let table = result.unwrap();
-        import.add_table("table", table);
+        import.add_table_new("table", &ty)?;
 
         // add memory
-        let memory = {
-            let result = MemType::create(10, Some(20), false);
-            assert!(result.is_ok());
-            let mem_ty = result.unwrap();
-            let result = Memory::create(&mem_ty);
-            assert!(result.is_ok());
-            result.unwrap()
-        };
-        import.add_memory("mem", memory);
+        let result = MemType::create(10, Some(20), false);
+        assert!(result.is_ok());
+        let mem_ty = result.unwrap();
+        import.add_memory_new("mem", &mem_ty)?;
 
         // add globals
         let result = GlobalType::create(ValType::F32, Mutability::Const);
         assert!(result.is_ok());
         let ty = result.unwrap();
-        let result = Global::create(&ty, WasmValue::from_f32(3.5));
-        assert!(result.is_ok());
-        let global = result.unwrap();
-        import.add_global("global", global);
+        import.add_global_new("global", &ty, WasmValue::from_f32(3.5))?;
 
         let result = Config::create();
         assert!(result.is_ok());
@@ -211,6 +197,8 @@ mod tests {
         assert_eq!(store.module_len(), 1);
         assert!(store.module_names().is_some());
         assert_eq!(store.module_names().unwrap()[0], module_name);
+
+        Ok(())
     }
 
     #[test]
@@ -240,7 +228,7 @@ mod tests {
         let store_cloned = Arc::clone(&store);
         let handle = thread::spawn(move || {
             // create ImportObject instance
-            let result = ImportModule::create::<NeverType>("extern_module", None);
+            let result = ImportModule::<NeverType>::create("extern_module", None);
             assert!(result.is_ok());
             let mut import = result.unwrap();
 
@@ -248,11 +236,8 @@ mod tests {
             let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
             assert!(result.is_ok());
             let func_ty = result.unwrap();
-            let result =
-                Function::create_sync_func::<NeverType>(&func_ty, Box::new(real_add), None, 0);
+            let result = import.add_func_new("add", &func_ty, Box::new(real_add), 0);
             assert!(result.is_ok());
-            let host_func = result.unwrap();
-            import.add_func("add", host_func);
 
             // create an Executor
             let result = Config::create();

@@ -1,12 +1,11 @@
 //! This example demonstrates that the function in interpreter mode calls the functions in AOT mode, and vice versa.
 
 use wasmedge_macro::sys_host_function;
+use wasmedge_sys::{CallingFrame, WasmValue};
 #[cfg(feature = "aot")]
 use wasmedge_sys::{
-    AsImport, Compiler, Config, Executor, FuncType, Function, ImportModule, ImportObject, Loader,
-    Store, Validator,
+    Compiler, Config, Executor, FuncType, ImportModule, ImportObject, Loader, Store, Validator,
 };
-use wasmedge_sys::{CallingFrame, WasmValue};
 use wasmedge_types::error::HostFuncError;
 #[cfg(feature = "aot")]
 use wasmedge_types::{NeverType, ValType};
@@ -45,19 +44,15 @@ fn interpreter_call_aot() -> Result<(), Box<dyn std::error::Error>> {
     let mut store = Store::create()?;
 
     // create an import module
-    let mut import = ImportModule::create::<NeverType>("host", None)?;
+    let mut import = ImportModule::<NeverType>::create("host", None)?;
 
     // import host_print_i32 as a host function
     let func_ty = FuncType::create([ValType::I32], [])?;
-    let host_func_print_i32 =
-        Function::create_sync_func::<NeverType>(&func_ty, Box::new(host_print_i32), None, 0)?;
-    import.add_func("host_printI32", host_func_print_i32);
+    import.add_func_new("host_printI32", &func_ty, Box::new(host_print_i32), 0)?;
 
     // import host_print_f64 as a host function
     let func_ty = FuncType::create([ValType::F64], [])?;
-    let host_func_print_f64 =
-        Function::create_sync_func::<NeverType>(&func_ty, Box::new(host_print_f64), None, 0)?;
-    import.add_func("host_printF64", host_func_print_f64);
+    import.add_func_new("host_printF64", &func_ty, Box::new(host_print_f64), 0)?;
 
     // register the import module
     let import_obj = ImportObject::Import(import);
@@ -132,19 +127,15 @@ fn aot_call_interpreter() -> Result<(), Box<dyn std::error::Error>> {
     let mut store = Store::create()?;
 
     // create an import module
-    let mut import = ImportModule::create::<NeverType>("host", None)?;
+    let mut import = ImportModule::<NeverType>::create("host", None)?;
 
     // import host_print_i32 as a host function
     let func_ty = FuncType::create([ValType::I32], [])?;
-    let host_func_print_i32 =
-        Function::create_sync_func::<NeverType>(&func_ty, Box::new(host_print_i32), None, 0)?;
-    import.add_func("host_printI32", host_func_print_i32);
+    import.add_func_new("host_printI32", &func_ty, Box::new(host_print_i32), 0)?;
 
     // import host_print_f64 as a host function
     let func_ty = FuncType::create([ValType::F64], [])?;
-    let host_func_print_f64 =
-        Function::create_sync_func::<NeverType>(&func_ty, Box::new(host_print_f64), None, 0)?;
-    import.add_func("host_printF64", host_func_print_f64);
+    import.add_func_new("host_printF64", &func_ty, Box::new(host_print_f64), 0)?;
 
     // register the import module
     let import_obj = ImportObject::Import(import);

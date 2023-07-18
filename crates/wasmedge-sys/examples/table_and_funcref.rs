@@ -6,8 +6,8 @@
 
 use wasmedge_macro::sys_host_function;
 use wasmedge_sys::{
-    AsImport, CallingFrame, Config, Executor, FuncType, Function, ImportModule, ImportObject,
-    Store, Table, TableType, WasmValue,
+    CallingFrame, Config, Executor, FuncType, Function, ImportModule, ImportObject, Store,
+    TableType, WasmValue,
 };
 use wasmedge_types::{error::HostFuncError, NeverType, RefType, ValType};
 
@@ -45,16 +45,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // create a host function
     let host_func = Function::create_sync_func::<NeverType>(&func_ty, Box::new(real_add), None, 0)?;
 
+    // add the table instance to the import object
+    let mut import = ImportModule::<NeverType>::create("extern", None)?;
+
     // create a TableType instance
     let ty = TableType::create(RefType::FuncRef, 10, Some(20))?;
-    // create a Table instance
-    let mut table = Table::create(&ty)?;
-    // call set_data to store a function reference at the given index of the table instance
-    table.set_data(WasmValue::from_func_ref(host_func.as_ref()), 3)?;
-
-    // add the table instance to the import object
-    let mut import = ImportModule::create::<NeverType>("extern", None)?;
-    import.add_table("my-table", table);
+    import.add_table_with_data(
+        "my-table",
+        &ty,
+        3,
+        WasmValue::from_func_ref(host_func.as_ref()),
+    )?;
 
     // create a config
     let mut config = Config::create()?;
