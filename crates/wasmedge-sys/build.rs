@@ -71,7 +71,25 @@ fn main() {
     println!("cargo:rerun-if-changed=build_install.rs");
 
     // find the location of the libwasmedge
-    let paths = if cfg!(feature = "standalone") {
+    let paths = if std::env::var("DOCS_RS").is_ok() {
+        let archive_dir = std::env::current_dir().unwrap().join("archive");
+        println!(
+            "cargo:warning=[wasmedge-sys] archive dir: {:?}",
+            &archive_dir
+        );
+        std::env::set_var(
+            "$WASMEDGE_STANDALONE_ARCHIVE",
+            archive_dir.to_str().unwrap(),
+        );
+        // use a standalone library from an extracted archive
+        let standalone_dir = get_standalone_libwasmedge();
+        debug!("using standalone extraction at {standalone_dir:?}");
+        let locations = [
+            LibWasmEdgePaths::try_from(&standalone_dir, "include", "lib64"),
+            LibWasmEdgePaths::try_from(&standalone_dir, "include", "lib"),
+        ];
+        find_libwasmedge(&locations)
+    } else if cfg!(feature = "standalone") {
         // use a standalone library from an extracted archive
         let standalone_dir = get_standalone_libwasmedge();
         debug!("using standalone extraction at {standalone_dir:?}");
