@@ -57,6 +57,11 @@ This crate uses `rust-bindgen` during the build process. If you would like to us
 
 **Notice:** The minimum supported Rust version is 1.68.
 
+## API Reference
+
+- [API Reference](https://docs.rs/crate/wasmedge-sdk/)
+- [Async API Reference](https://wasmedge.github.io/wasmedge-rust-sdk/wasmedge_sdk/)
+
 ## Examples
 
 The [Examples of WasmEdge RustSDK](https://github.com/second-state/wasmedge-rustsdk-examples) repo contains a number of examples that demonstrate how to use the WasmEdge Rust SDK.
