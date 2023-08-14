@@ -71,15 +71,22 @@ fn main() {
     println!("cargo:rerun-if-changed=build_install.rs");
 
     // find the location of the libwasmedge
+    let archive_name = format!(
+        "WasmEdge-{}-ubuntu20.04_x86_64.tar.gz",
+        WASMEDGE_RELEASE_VERSION
+    );
     let paths = if std::env::var("DOCS_RS").is_ok() {
-        let archive_dir = std::env::current_dir().unwrap().join("archive");
+        let archive_path = std::env::current_dir()
+            .unwrap()
+            .join("archive")
+            .join(&archive_name);
         println!(
-            "cargo:warning=[wasmedge-sys] archive dir: {:?}",
-            &archive_dir
+            "cargo:warning=[wasmedge-sys] archive path: {:?}",
+            &archive_path
         );
         std::env::set_var(
-            "$WASMEDGE_STANDALONE_ARCHIVE",
-            archive_dir.to_str().unwrap(),
+            "WASMEDGE_STANDALONE_ARCHIVE",
+            archive_path.to_str().unwrap(),
         );
         // use a standalone library from an extracted archive
         let standalone_dir = get_standalone_libwasmedge();
@@ -90,6 +97,18 @@ fn main() {
         ];
         find_libwasmedge(&locations)
     } else if cfg!(feature = "standalone") {
+        if std::env::var("DOCS_RS").is_ok() {
+            let archive_dir = std::env::current_dir().unwrap().join("archive");
+            println!(
+                "cargo:warning=[wasmedge-sys] archive dir: {:?}",
+                &archive_dir
+            );
+            std::env::set_var(
+                "$WASMEDGE_STANDALONE_ARCHIVE",
+                archive_dir.to_str().unwrap(),
+            );
+        }
+
         // use a standalone library from an extracted archive
         let standalone_dir = get_standalone_libwasmedge();
         debug!("using standalone extraction at {standalone_dir:?}");
