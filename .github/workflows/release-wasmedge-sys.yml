@@ -62,17 +62,3 @@ jobs:
         shell: bash
         run: |
           cargo publish -p wasmedge-sys
-
-      - name: Build API document
-        working-directory: wasmedge-rust-sdk
-        run: |
-          cargo doc -p wasmedge-sys --workspace --no-deps --features aot,async,wasi_crypto,wasi_nn,wasmedge_process,ffi --target-dir=./target
-
-      - name: Deploy API document
-        if: github.ref == 'refs/heads/main'
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_branch: gh-pages
-          publish_dir: wasmedge-rust-sdk/target/doc
-          force_orphan: true
