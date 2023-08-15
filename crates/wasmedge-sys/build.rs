@@ -78,7 +78,7 @@ fn main() {
     let paths = if std::env::var("DOCS_RS").is_ok() {
         let archive_path = std::env::current_dir()
             .unwrap()
-            .join("archive")
+            .join("libwasmedge")
             .join(&archive_name);
         println!(
             "cargo:warning=[wasmedge-sys] archive path: {:?}",
@@ -97,18 +97,6 @@ fn main() {
         ];
         find_libwasmedge(&locations)
     } else if cfg!(feature = "standalone") {
-        if std::env::var("DOCS_RS").is_ok() {
-            let archive_dir = std::env::current_dir().unwrap().join("archive");
-            println!(
-                "cargo:warning=[wasmedge-sys] archive dir: {:?}",
-                &archive_dir
-            );
-            std::env::set_var(
-                "$WASMEDGE_STANDALONE_ARCHIVE",
-                archive_dir.to_str().unwrap(),
-            );
-        }
-
         // use a standalone library from an extracted archive
         let standalone_dir = get_standalone_libwasmedge();
         debug!("using standalone extraction at {standalone_dir:?}");
