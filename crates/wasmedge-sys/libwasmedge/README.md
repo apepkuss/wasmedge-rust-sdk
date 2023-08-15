@@ -1,0 +1,1 @@
+The file in this directory is a release of WasmEdge library, which is used for API document generation on [docs.rs](https://docs.rs/). Download the correct release of WasmEdge library before publishing WasmEdge Rust SDK document.
