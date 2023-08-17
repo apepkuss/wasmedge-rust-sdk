@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["ffi"],"struct":["Plugin","PluginDescriptor","PluginManager","PluginModule","PluginModuleBuilder","PluginVersion"],"type":["ModuleInstanceCreateFn","PluginInstance","ProgramOptionType"]};
