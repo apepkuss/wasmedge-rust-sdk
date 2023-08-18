@@ -54,10 +54,7 @@ jobs:
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # - name: Install WasmEdge
-      #   run: winget install wasmedge --disable-interactivity --accept-source-agreements
-
       - name: Run in the standalone mode
         run: |
           $env:Path="$env:Path;C:\Program Files\WasmEdge\lib"
-          cargo test -p wasmedge-sdk --all --examples --features standalone
+          cargo test --workspace --exclude async-wasi --features aot,ffi --locked -- --nocapture --test-threads=1
