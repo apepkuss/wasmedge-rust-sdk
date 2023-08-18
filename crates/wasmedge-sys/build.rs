@@ -72,14 +72,38 @@ fn main() {
 
     // find the location of the libwasmedge
     let paths = if cfg!(feature = "standalone") {
-        // use a standalone library from an extracted archive
-        let standalone_dir = get_standalone_libwasmedge();
-        debug!("using standalone extraction at {standalone_dir:?}");
-        let locations = [
-            LibWasmEdgePaths::try_from(&standalone_dir, "include", "lib64"),
-            LibWasmEdgePaths::try_from(&standalone_dir, "include", "lib"),
-        ];
-        find_libwasmedge(&locations)
+        if cfg!(target_os = "windows") {
+            // winget install wasmedge
+            let status = std::process::Command::new("winget")
+                .args(&[
+                    "install",
+                    "wasmedge",
+                    "--disable-interactivity",
+                    "--accept-source-agreements",
+                ])
+                .status();
+            if status.is_err() {
+                debug!("fail to install winget: {:?}", status);
+            }
+
+            let standalone_dir = std::path::PathBuf::from("C:\\Program Files\\WasmEdge");
+            debug!("using standalone extraction at {standalone_dir:?}");
+            let locations = [LibWasmEdgePaths::try_from(
+                &standalone_dir,
+                "include",
+                "lib",
+            )];
+            find_libwasmedge(&locations)
+        } else {
+            // use a standalone library from an extracted archive
+            let standalone_dir = get_standalone_libwasmedge();
+            debug!("using standalone extraction at {standalone_dir:?}");
+            let locations = [
+                LibWasmEdgePaths::try_from(&standalone_dir, "include", "lib64"),
+                LibWasmEdgePaths::try_from(&standalone_dir, "include", "lib"),
+            ];
+            find_libwasmedge(&locations)
+        }
     } else {
         // find the library in the system
         debug!("searching for existing libwasmedge install");
