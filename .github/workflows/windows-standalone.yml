@@ -64,4 +64,4 @@ jobs:
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
           $env:Path="$env:Path;C:\Users\runneradmin\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin;D:\a\wasmedge-rust-sdk\wasmedge-rust-sdk\WasmEdge\build\lib\api;C:\Program Files\WasmEdge\lib"
-          cargo test --workspace --exclude async-wasi --features aot,ffi --locked -- --nocapture --test-threads=1
+          cargo test --workspace --exclude async-wasi --features aot,ffi -- --nocapture --test-threads=1
