@@ -9,10 +9,12 @@ on:
     paths-ignore:
       - "**/*.md"
       - ".github/workflows/standalone.yml"
+      - ".github/workflows/windows-standalone.yml"
   pull_request:
     paths-ignore:
       - "**/*.md"
       - ".github/workflows/standalone.yml"
+      - ".github/workflows/windows-standalone.yml"
 
 jobs:
   build_ubuntu:
