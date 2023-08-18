@@ -56,5 +56,4 @@ jobs:
 
       - name: Run in the standalone mode
         run: |
-          $env:Path="$env:Path;C:\Program Files\WasmEdge\lib"
           cargo test --workspace --exclude async-wasi --features aot,ffi --locked -- --nocapture --test-threads=1
