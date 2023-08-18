@@ -93,14 +93,14 @@ fn main() {
             // if res.is_err() {
             //     debug!("fail to append the path to wasmedge to PATH");
             // }
-            if let Some(path) = env::var_os("PATH") {
-                let mut paths = env::split_paths(&path).collect::<Vec<_>>();
-                paths.push(PathBuf::from("C:\\Program Files\\WasmEdge\\lib"));
-                match env::join_paths(paths) {
-                    Ok(new_path) => env::set_var("PATH", &new_path),
-                    _ => panic!("fail to set the 'PATH' environment variable"),
-                }
-            }
+            // if let Some(path) = env::var_os("PATH") {
+            //     let mut paths = env::split_paths(&path).collect::<Vec<_>>();
+            //     paths.push(PathBuf::from("C:\\Program Files\\WasmEdge\\lib"));
+            //     match env::join_paths(paths) {
+            //         Ok(new_path) => env::set_var("PATH", &new_path),
+            //         _ => panic!("fail to set the 'PATH' environment variable"),
+            //     }
+            // }
 
             let standalone_dir = std::path::PathBuf::from("C:\\Program Files\\WasmEdge");
             debug!("using standalone extraction at {standalone_dir:?}");
