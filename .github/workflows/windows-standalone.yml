@@ -24,8 +24,6 @@ jobs:
     strategy:
       matrix:
         rust: [1.71]
-    # env:
-    #   WASMEDGE_DIR: ${{ github.workspace }}\WasmEdge-0.13.3-Windows
     steps:
       - uses: actions/checkout@v3
         with:
@@ -45,15 +43,6 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ matrix.rust }}
-
-      # - name: Install winget
-      #   uses: Cyberboss/install-winget@v1
-      #   with:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # - name: Install WasmEdge
-      #   run: |
-      #     winget install wasmedge --version 0.13.3 --disable-interactivity --accept-source-agreements
 
       - name: Download WasmEdge for Windows
         run: |
