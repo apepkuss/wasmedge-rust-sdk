@@ -110,6 +110,9 @@ jobs:
 
       - name: Run in the standalone mode
         run: |
+          $vsPath = (vswhere -latest -property installationPath)
+          Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
+          Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
           # export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
           # export CC=clang
           # export CXX=clang++
