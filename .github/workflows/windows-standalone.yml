@@ -56,4 +56,4 @@ jobs:
 
       - name: Run in the standalone mode
         run: |
-          cargo test --workspace --exclude async-wasi --features aot,ffi --locked -- --nocapture --test-threads=1
+          cargo test -p wasmedge-sdk --all --features aot,ffi,standalone -- --nocapture --test-threads=1
