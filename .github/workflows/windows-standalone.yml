@@ -25,7 +25,7 @@ jobs:
       matrix:
         rust: [1.71]
     env:
-      WASMEDGE_DIR: ${{ github.workspace }}\WasmEdge\WasmEdge-0.13.3-Windows
+      WASMEDGE_DIR: ${{ github.workspace }}\WasmEdge-0.13.3-Windows
       # WASMEDGE_BUILD_DIR: ${{ github.workspace }}\WasmEdge\build
       # WASMEDGE_PLUGIN_PATH: ${{ github.workspace }}\WasmEdge\build\wasmedge\plugins\wasmedge_process
       # LD_LIBRARY_PATH: ${{ github.workspace }}\WasmEdge\build\lib\api
@@ -68,5 +68,5 @@ jobs:
           $vsPath = (vswhere -latest -property installationPath)
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
-          $env:Path="$env:Path;C:\Users\runneradmin\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin;D:\a\wasmedge-rust-sdk\wasmedge-rust-sdk\WasmEdge\build\lib\api;D:\a\wasmedge-rust-sdk\wasmedge-rust-sdk\WasmEdge\WasmEdge-0.13.3-Windows"
+          $env:Path="$env:Path;C:\Users\runneradmin\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin;D:\a\wasmedge-rust-sdk\wasmedge-rust-sdk\WasmEdge\build\lib\api;D:\a\wasmedge-rust-sdk\wasmedge-rust-sdk\WasmEdge-0.13.3-Windows"
           cargo test --workspace --exclude async-wasi --features aot,ffi -- --nocapture --test-threads=1
