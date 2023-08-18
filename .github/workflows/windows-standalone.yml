@@ -109,7 +109,6 @@ jobs:
         run: winget install wasmedge --disable-interactivity --accept-source-agreements
 
       - name: Run in the standalone mode
-        env:
         run: |
           # export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
           # export CC=clang
