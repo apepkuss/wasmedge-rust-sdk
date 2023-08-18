@@ -74,18 +74,41 @@ fn main() {
     // find the location of the libwasmedge
     let paths = if cfg!(feature = "standalone") {
         if cfg!(target_os = "windows") {
-            // winget install wasmedge
-            let status = std::process::Command::new("winget")
-                .args(&[
-                    "install",
-                    "wasmedge",
-                    "--disable-interactivity",
-                    "--accept-source-agreements",
-                ])
-                .status();
-            if status.is_err() {
-                debug!("fail to install winget: {:?}", status);
+            {
+                // * download msi
+                let url = format!("https://github.com/WasmEdge/WasmEdge/releases/download/{WASMEDGE_RELEASE_VERSION}/WasmEdge-{WASMEDGE_RELEASE_VERSION}-windows.msi");
+                // let sha = "7a72b28028a6303e454aa96cfdb0167fb9a0923f27e551a4fdabc7f85a07e846";
+                // let checksum = sha.to_string();
+                // Archive::Remote { url, checksum }
+
+                let dst = STANDALONE_DIR.join("archive.msi");
+                let mut request = do_http_request(&url);
+                let mut file = std::fs::File::create(&dst).expect("failed to create archive");
+                std::io::copy(&mut request, &mut file).expect("failed to download archive");
+                // let sha = sha256::try_digest(&dst).expect("failed to read archive");
+
+                // * install msi
+                let msi = dst.to_str().unwrap();
+                let status = std::process::Command::new("msiexec.exe")
+                    .args(["/i", msi, "/QN"])
+                    .status();
+                if status.is_err() {
+                    debug!("fail to install archive.msi: {:?}", status);
+                }
             }
+
+            // // winget install wasmedge
+            // let status = std::process::Command::new("winget")
+            //     .args(&[
+            //         "install",
+            //         "wasmedge",
+            //         "--disable-interactivity",
+            //         "--accept-source-agreements",
+            //     ])
+            //     .status();
+            // if status.is_err() {
+            //     debug!("fail to install winget: {:?}", status);
+            // }
 
             if let Some(path) = env::var_os("PATH") {
                 let mut paths = env::split_paths(&path).collect::<Vec<_>>();

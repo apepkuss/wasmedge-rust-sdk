@@ -110,7 +110,7 @@ fn get_remote_archive() -> Archive {
     Archive::Remote { url, checksum }
 }
 
-fn do_http_request(url: &str) -> impl std::io::Read {
+pub fn do_http_request(url: &str) -> impl std::io::Read {
     let builder = reqwest::blocking::Client::builder();
     let builder = match Env("WASMEDGE_STANDALONE_PROXY").lossy() {
         Some(proxy) => {
