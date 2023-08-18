@@ -24,11 +24,8 @@ jobs:
     strategy:
       matrix:
         rust: [1.71]
-    env:
-      WASMEDGE_DIR: ${{ github.workspace }}\WasmEdge-0.13.3-Windows
-      # WASMEDGE_BUILD_DIR: ${{ github.workspace }}\WasmEdge\build
-      # WASMEDGE_PLUGIN_PATH: ${{ github.workspace }}\WasmEdge\build\wasmedge\plugins\wasmedge_process
-      # LD_LIBRARY_PATH: ${{ github.workspace }}\WasmEdge\build\lib\api
+    # env:
+    #   WASMEDGE_DIR: ${{ github.workspace }}\WasmEdge-0.13.3-Windows
     steps:
       - uses: actions/checkout@v3
         with:
