@@ -86,6 +86,13 @@ fn main() {
                 debug!("fail to install winget: {:?}", status);
             }
 
+            // set PATH
+            let res =
+                std::env::join_paths([std::path::Path::new("C:\\Program Files\\WasmEdge\\lib")]);
+            if res.is_err() {
+                debug!("fail to append the path to wasmedge to PATH");
+            }
+
             let standalone_dir = std::path::PathBuf::from("C:\\Program Files\\WasmEdge");
             debug!("using standalone extraction at {standalone_dir:?}");
             let locations = [LibWasmEdgePaths::try_from(
