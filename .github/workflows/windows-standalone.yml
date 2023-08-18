@@ -56,4 +56,5 @@ jobs:
 
       - name: Run in the standalone mode
         run: |
+          $env:Path="$env:Path;C:\Program Files\WasmEdge\lib"
           cargo test -p wasmedge-sdk --all --features aot,ffi,standalone -- --nocapture --test-threads=1
