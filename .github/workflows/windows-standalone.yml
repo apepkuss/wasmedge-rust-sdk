@@ -59,7 +59,6 @@ jobs:
       #     winget install wasmedge --version 0.13.3 --disable-interactivity --accept-source-agreements
 
       - name: Download WasmEdge for Windows
-        working-directory: ${{ github.workspace }}\WasmEdge
         run: |
           wget https://github.com/WasmEdge/WasmEdge/releases/download/0.13.3/WasmEdge-0.13.3-windows.zip
           unzip -q WasmEdge-0.13.3-windows.zip
