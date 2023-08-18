@@ -74,18 +74,18 @@ fn main() {
     // find the location of the libwasmedge
     let paths = if cfg!(feature = "standalone") {
         if cfg!(target_os = "windows") {
-            // // winget install wasmedge
-            // let status = std::process::Command::new("winget")
-            //     .args(&[
-            //         "install",
-            //         "wasmedge",
-            //         "--disable-interactivity",
-            //         "--accept-source-agreements",
-            //     ])
-            //     .status();
-            // if status.is_err() {
-            //     debug!("fail to install winget: {:?}", status);
-            // }
+            // winget install wasmedge
+            let status = std::process::Command::new("winget")
+                .args(&[
+                    "install",
+                    "wasmedge",
+                    "--disable-interactivity",
+                    "--accept-source-agreements",
+                ])
+                .status();
+            if status.is_err() {
+                debug!("fail to install winget: {:?}", status);
+            }
 
             if let Some(path) = env::var_os("PATH") {
                 let mut paths = env::split_paths(&path).collect::<Vec<_>>();
