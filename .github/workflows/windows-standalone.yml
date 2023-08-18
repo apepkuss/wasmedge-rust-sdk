@@ -61,6 +61,8 @@ jobs:
       - name: Download WasmEdge for Windows
         run: |
           wget -O ${{ github.workspace }}\WasmEdge https://github.com/WasmEdge/WasmEdge/releases/download/0.13.3/WasmEdge-0.13.3-windows.zip
+          cd ${{ github.workspace }}\WasmEdge
+          unzip -q WasmEdge-0.13.3-windows.zip
 
       - name: Run in the standalone mode
         run: |
