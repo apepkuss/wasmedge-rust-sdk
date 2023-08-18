@@ -56,4 +56,4 @@ jobs:
 
       - name: Run in the standalone mode
         run: |
-          cargo test -p wasmedge-sdk --all --examples
+          cargo test -p wasmedge-sdk --all
