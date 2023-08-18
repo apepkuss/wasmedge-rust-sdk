@@ -62,6 +62,8 @@ jobs:
           dir WasmEdge-0.13.3-Windows
 
       - name: Run in the standalone mode
+        env:
+          WASMEDGE_DIR: ${{ github.workspace }}\WasmEdge-0.13.3-Windows
         run: |
           $vsPath = (vswhere -latest -property installationPath)
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
