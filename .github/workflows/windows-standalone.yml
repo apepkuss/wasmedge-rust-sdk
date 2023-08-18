@@ -37,7 +37,7 @@ jobs:
       - name: Install dependency
         uses: crazy-max/ghaction-chocolatey@v2
         with:
-          args: install cmake ninja vswhere
+          args: install cmake ninja vswhere wget
 
       - name: Set up Windows 10 SDK
         uses: GuillaumeFalourd/setup-windows10-sdk-action@v1.11
@@ -49,19 +49,23 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
 
-      - name: Install winget
-        uses: Cyberboss/install-winget@v1
-        with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # - name: Install winget
+      #   uses: Cyberboss/install-winget@v1
+      #   with:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install WasmEdge
+      # - name: Install WasmEdge
+      #   run: |
+      #     winget install wasmedge --version 0.13.3 --disable-interactivity --accept-source-agreements
+
+      - name: Download WasmEdge for Windows
         run: |
-          winget install wasmedge --disable-interactivity --accept-source-agreements
+          wget -O ${{ github.workspace }}\WasmEdge https://github.com/WasmEdge/WasmEdge/releases/download/0.13.3/WasmEdge-0.13.3-windows.zip
 
       - name: Run in the standalone mode
         run: |
           $vsPath = (vswhere -latest -property installationPath)
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
-          $env:Path="$env:Path;C:\Users\runneradmin\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin;D:\a\wasmedge-rust-sdk\wasmedge-rust-sdk\WasmEdge\build\lib\api;C:\Program Files\WasmEdge\lib"
+          $env:Path="$env:Path;C:\Users\runneradmin\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin;D:\a\wasmedge-rust-sdk\wasmedge-rust-sdk\WasmEdge\build\lib\api;D:\a\wasmedge-rust-sdk\wasmedge-rust-sdk\WasmEdge\WasmEdge-0.13.3-Windows"
           cargo test --workspace --exclude async-wasi --features aot,ffi -- --nocapture --test-threads=1
