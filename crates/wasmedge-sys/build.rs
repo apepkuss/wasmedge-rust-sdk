@@ -75,17 +75,17 @@ fn main() {
     let paths = if cfg!(feature = "standalone") {
         if cfg!(target_os = "windows") {
             // winget install wasmedge
-            let status = std::process::Command::new("winget")
-                .args([
-                    "install",
-                    "wasmedge",
-                    "--disable-interactivity",
-                    "--accept-source-agreements",
-                ])
-                .status();
-            if status.is_err() {
-                debug!("fail to install winget: {:?}", status);
-            }
+            // let status = std::process::Command::new("winget")
+            //     .args([
+            //         "install",
+            //         "wasmedge",
+            //         "--disable-interactivity",
+            //         "--accept-source-agreements",
+            //     ])
+            //     .status();
+            // if status.is_err() {
+            //     debug!("fail to install winget: {:?}", status);
+            // }
 
             // // set PATH
             // let res =
@@ -95,7 +95,7 @@ fn main() {
             // }
             if let Some(path) = env::var_os("PATH") {
                 let mut paths = env::split_paths(&path).collect::<Vec<_>>();
-                paths.push(PathBuf::from("/home/xyz/bin"));
+                paths.push(PathBuf::from("C:\\Program Files\\WasmEdge\\lib"));
                 match env::join_paths(paths) {
                     Ok(new_path) => env::set_var("PATH", &new_path),
                     _ => panic!("fail to set the 'PATH' environment variable"),
