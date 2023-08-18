@@ -1,0 +1,118 @@
+name: Continuous integration
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    paths-ignore:
+      - "**/*.md"
+      - ".github/workflows/standalone.yml"
+      - ".github/workflows/ci-build.yml"
+
+  pull_request:
+    paths-ignore:
+      - "**/*.md"
+      - ".github/workflows/standalone.yml"
+      - ".github/workflows/ci-build.yml"
+
+jobs:
+  build_windows:
+    name: Windows
+    runs-on: windows-2022
+    strategy:
+      matrix:
+        rust: [1.71]
+    env:
+      WASMEDGE_DIR: ${{ github.workspace }}\WasmEdge
+      WASMEDGE_BUILD_DIR: ${{ github.workspace }}\WasmEdge\build
+      WASMEDGE_PLUGIN_PATH: ${{ github.workspace }}\WasmEdge\build\wasmedge\plugins\wasmedge_process
+      LD_LIBRARY_PATH: ${{ github.workspace }}\WasmEdge\build\lib\api
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      # - name: Checkout WasmEdge Runtime
+      #   uses: actions/checkout@v3
+      #   with:
+      #     repository: WasmEdge/WasmEdge
+      #     path: WasmEdge
+
+      - name: Install dependency
+        uses: crazy-max/ghaction-chocolatey@v2
+        with:
+          args: install cmake ninja vswhere
+
+      - name: Set up Windows 10 SDK
+        uses: GuillaumeFalourd/setup-windows10-sdk-action@v1.11
+        with:
+          sdk-version: 19041
+
+      # - name: Build WasmEdge with Release mode
+      #   working-directory: WasmEdge
+      #   run: |
+      #     $vsPath = (vswhere -latest -property installationPath)
+      #     Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
+      #     Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
+      #     $llvm = "LLVM-13.0.1-win64.zip"
+      #     curl -sLO https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-13.0.1/LLVM-13.0.1-win64.zip -o $llvm
+      #     Expand-Archive -Path $llvm
+      #     $llvm_dir = "$pwd\\LLVM-13.0.1-win64\\LLVM-13.0.1-win64\\lib\\cmake\\llvm"
+      #     $Env:CC = "clang-cl"
+      #     $Env:CXX = "clang-cl"
+      #     $cmake_sys_version = "10.0.19041.0"
+      #     cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_SYSTEM_VERSION=$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" -DWASMEDGE_BUILD_PACKAGE="ZIP" .
+      #     cmake --build build
+
+      # - name: Install Rust-nightly
+      #   uses: dtolnay/rust-toolchain@nightly
+      #   with:
+      #     components: rustfmt, clippy
+
+      # - name: Rustfmt
+      #   run: cargo +nightly fmt --all -- --check
+
+      # - name: Clippy
+      #   run: |
+      #     $vsPath = (vswhere -latest -property installationPath)
+      #     Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
+      #     Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
+      #     cargo +nightly clippy -V
+      #     cargo +nightly clippy --lib --examples --features aot,ffi -- -D warnings
+
+      # - name: Install Rust-stable
+      #   uses: dtolnay/rust-toolchain@stable
+      #   with:
+      #     toolchain: ${{ matrix.rust }}
+
+      # - name: Test Rust Bindings
+      #   run: |
+      #     $vsPath = (vswhere -latest -property installationPath)
+      #     Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
+      #     Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
+      #     $env:Path="$env:Path;C:\Users\runneradmin\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin;D:\a\wasmedge-rust-sdk\wasmedge-rust-sdk\WasmEdge\build\lib\api"
+      #     cargo test --workspace --exclude async-wasi --features aot,ffi --locked -- --nocapture --test-threads=1
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.rust }}
+
+      - name: Install winget
+        uses: Cyberboss/install-winget@v1
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install wingetcreate
+        run: winget install wasmedge --disable-interactivity --accept-source-agreements
+
+      - name: Run in the standalone mode
+        run: |
+          # export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
+          # export CC=clang
+          # export CXX=clang++
+          # export LD_LIBRARY_PATH=$HOME/.wasmedge/lib
+          export LD_LIBRARY_PATH="C:\Program Files\WasmEdge\lib"
+          cargo test -p wasmedge-sdk --all --examples
