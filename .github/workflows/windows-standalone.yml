@@ -110,9 +110,5 @@ jobs:
 
       - name: Run in the standalone mode
         run: |
-          # export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
-          # export CC=clang
-          # export CXX=clang++
-          # export LD_LIBRARY_PATH=$HOME/.wasmedge/lib
-          $env:Path="$env:Path;C:\Program Files\WasmEdge\lib"
+          # $env:Path="$env:Path;C:\Program Files\WasmEdge\lib"
           cargo test -p wasmedge-sdk --all --examples
