@@ -105,8 +105,8 @@ jobs:
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install WasmEdge
-        run: winget install wasmedge --disable-interactivity --accept-source-agreements
+      # - name: Install WasmEdge
+      #   run: winget install wasmedge --disable-interactivity --accept-source-agreements
 
       - name: Run in the standalone mode
         run: |
