@@ -120,6 +120,12 @@ fn main() {
         find_libwasmedge(&*SEARCH_LOCATIONS)
     };
 
+    // ! debug
+    let status = std::process::Command::new("winget")
+        .arg("--version")
+        .status();
+    debug!("winget status: {:?}", status);
+
     let paths = paths.expect("Failed to locate the required header and/or library file. Please reference the link: https://wasmedge.org/book/en/embed/rust.html");
     debug!("found libwasmedge at {paths:?}");
 
