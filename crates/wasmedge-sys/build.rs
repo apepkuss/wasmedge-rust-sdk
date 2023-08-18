@@ -75,7 +75,7 @@ fn main() {
         if cfg!(target_os = "windows") {
             // winget install wasmedge
             let status = std::process::Command::new("winget")
-                .args(&[
+                .args([
                     "install",
                     "wasmedge",
                     "--disable-interactivity",
