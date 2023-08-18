@@ -1,5 +1,6 @@
 use lazy_static::lazy_static;
 use phf::phf_map;
+use std::{env, path::PathBuf};
 
 mod build_paths;
 use build_paths::{Env, LibWasmEdgePaths};
@@ -50,8 +51,8 @@ static ref SEARCH_LOCATIONS: [Option<LibWasmEdgePaths>; 11] = [
     LibWasmEdgePaths::try_from(Env("HOME"), ".local/include", ".local/lib"),
 ];
 
-static ref OUT_DIR: std::path::PathBuf = Env("OUT_DIR").expect("failed to get OUT_DIR");
-static ref STANDALONE_DIR: std::path::PathBuf = OUT_DIR.join("standalone");
+static ref OUT_DIR: PathBuf = Env("OUT_DIR").expect("failed to get OUT_DIR");
+static ref STANDALONE_DIR: PathBuf = OUT_DIR.join("standalone");
 
 }
 
@@ -92,6 +93,14 @@ fn main() {
             // if res.is_err() {
             //     debug!("fail to append the path to wasmedge to PATH");
             // }
+            if let Some(path) = env::var_os("PATH") {
+                let mut paths = env::split_paths(&path).collect::<Vec<_>>();
+                paths.push(PathBuf::from("/home/xyz/bin"));
+                match env::join_paths(paths) {
+                    Ok(new_path) => env::set_var("PATH", &new_path),
+                    _ => panic!("fail to set the 'PATH' environment variable"),
+                }
+            }
 
             let standalone_dir = std::path::PathBuf::from("C:\\Program Files\\WasmEdge");
             debug!("using standalone extraction at {standalone_dir:?}");
