@@ -216,6 +216,10 @@ fn main() {
                 debug!("C:\\Program Files\\WasmEdge\\bin does not exit");
             } else if !wasmedge_dir.join("bin").join("wasmedge.dll").exists() {
                 debug!("C:\\Program Files\\WasmEdge\\bin\\wasmedge.dll does not exit");
+            } else if !wasmedge_dir.join("lib").exists() {
+                debug!("C:\\Program Files\\WasmEdge\\lib does not exit");
+            } else if !wasmedge_dir.join("lib").join("wasmedge.dll").exists() {
+                debug!("C:\\Program Files\\WasmEdge\\lib\\wasmedge.dll does not exit");
             } else {
                 debug!("winget install wasmedge success");
             }
