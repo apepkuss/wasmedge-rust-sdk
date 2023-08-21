@@ -123,10 +123,7 @@ fn main() {
     };
 
     // ! debug
-    if cfg!(target_os = "windows") {
-        debug!("OUT_DIR: {:?}", OUT_DIR);
-        debug!("STANDALONE_DIR: {:?}", STANDALONE_DIR);
-    }
+    debug!("paths: {:?}", &paths);
 
     let paths = paths.expect("Failed to locate the required header and/or library file. Please reference the link: https://wasmedge.org/book/en/embed/rust.html");
     debug!("found libwasmedge at {paths:?}");
