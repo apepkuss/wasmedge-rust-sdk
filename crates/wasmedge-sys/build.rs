@@ -224,6 +224,7 @@ fn main() {
                     Ok(new_path) => env::set_var("PATH", &new_path),
                     _ => panic!("fail to set the 'PATH' environment variable"),
                 }
+                debug!("PATH: {:?}", env::var_os("PATH"));
             }
 
             let locations = [LibWasmEdgePaths::try_from(
