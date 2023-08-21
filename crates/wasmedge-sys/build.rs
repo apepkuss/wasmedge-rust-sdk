@@ -121,7 +121,7 @@ fn main() {
     };
 
     // ! debug
-    if cfg!(feature = "windows") {
+    if cfg!(target_os = "windows") {
         let x = std::env::var_os("HOMEPATH").unwrap();
         debug!("HOMEPATH: {:?}", x);
     }
