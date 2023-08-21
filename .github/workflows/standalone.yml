@@ -50,7 +50,7 @@ jobs:
           export CC=clang
           export CXX=clang++
           export LD_LIBRARY_PATH=$HOME/.wasmedge/lib
-          cargo test -p wasmedge-sdk --all --examples --features standalone
+          cargo test -p wasmedge-sdk --all --features aot,ffi,standalone
 
   build_ubuntu_2004:
     name: Ubuntu
@@ -84,7 +84,7 @@ jobs:
           export CC=clang
           export CXX=clang++
           export LD_LIBRARY_PATH=$HOME/.wasmedge/lib
-          cargo test -p wasmedge-sdk --all --examples --features standalone
+          cargo test -p wasmedge-sdk --all --features aot,ffi,standalone
 
   build_macos:
     name: MacOS
@@ -114,7 +114,7 @@ jobs:
           export CC=clang
           export CXX=clang++
           export DYLD_LIBRARY_PATH=$HOME/.wasmedge/lib
-          cargo test -p wasmedge-sdk --all --examples --features standalone
+          cargo test -p wasmedge-sdk --all --features aot,ffi,standalone
 
   build_fedora:
     name: Fedora latest
@@ -146,4 +146,4 @@ jobs:
           export CC=clang
           export CXX=clang++
           export LD_LIBRARY_PATH=$HOME/.wasmedge/lib
-          cargo test -p wasmedge-sdk --all --examples --features standalone
+          cargo test -p wasmedge-sdk --all --features aot,ffi,standalone
