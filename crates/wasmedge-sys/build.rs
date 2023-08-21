@@ -27,6 +27,7 @@ const REMOTE_ARCHIVES: phf::Map<&'static str, (&'static str, &'static str)> = ph
     "linux/x86_64/gnu/static"      => ("488d47c43653c0a079c034aa73e525dd60873af15967d6c1d82386862ba31baa", "debian11_x86_64_static"),
     "linux/aarch64/musl/static"    => ("9a44c495ce8d9bcfb284dc2154d76a27165ad852d3a3a16a1578de1d2a765fb8", "alpine3.16_aarch64_static"),
     "linux/x86_64/musl/static"     => ("a0ccfd944e5df5f89008a7158046e10ee84fe74406f9c44394e81f4e1ed23b02", "alpine3.16_x86_64_static"),
+    "windows/x86_64" => ("905d01076737a1365f8a4a6e45587933bc0f73a26a0707b00c73bac1053e6f14", "windows")
 };
 
 lazy_static! {
