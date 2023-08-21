@@ -23,7 +23,11 @@ impl Archive {
             Archive::Local { path } => path.clone(),
             Archive::Remote { url, checksum } => {
                 debug!("downloading archive");
-                let dst = STANDALONE_DIR.join("archive.tar.gz");
+                let dst = if cfg!(target_os = "windows") {
+                    STANDALONE_DIR.join("archive.zip")
+                } else {
+                    STANDALONE_DIR.join("archive.tar.gz")
+                };
                 let mut request = do_http_request(url);
                 let mut file = std::fs::File::create(&dst).expect("failed to create archive");
                 std::io::copy(&mut request, &mut file).expect("failed to download archive");
@@ -61,15 +65,32 @@ pub fn get_standalone_libwasmedge() -> std::path::PathBuf {
         }
         std::fs::create_dir_all(STANDALONE_DIR.as_path()).expect("failed to create archive dir");
 
+        // download the archive
         let file = archive.get();
-        let readable = std::fs::File::open(file).expect("failed to open archive");
-        let ungzipped = flate2::read::GzDecoder::new(readable);
+        debug!("archive downloaded to {file:?}");
 
         debug!("extracting archive");
-        tar::Archive::new(ungzipped)
-            .unpack(STANDALONE_DIR.as_path())
-            .expect("failed to extract archive");
+        if cfg!(target_os = "windows") {
+            let status = std::process::Command::new("unzip")
+                .arg("-q")
+                .arg(file.to_str().unwrap())
+                .arg("-d")
+                .arg(STANDALONE_DIR.to_str().unwrap())
+                .status();
+            if status.is_err() {
+                debug!("fail to unzip WasmEdge-0.13.3-windows.zip: {:?}", status);
+            } else {
+                debug!("success to unzip WasmEdge-0.13.3-windows.zip: {:?}", status);
+            }
+        } else {
+            let readable = std::fs::File::open(file).expect("failed to open archive");
+            let ungzipped = flate2::read::GzDecoder::new(readable);
+            tar::Archive::new(ungzipped)
+                .unpack(STANDALONE_DIR.as_path())
+                .expect("failed to extract archive");
+        }
 
+        debug!("cleaning up");
         archive.cleanup();
 
         std::fs::write(STANDALONE_DIR.join(".stamp"), hash).expect("failed to write archive stamp");

@@ -75,56 +75,56 @@ fn main() {
     println!("cargo:rerun-if-changed=build_install.rs");
 
     if cfg!(target_os = "windows") {
-        let status = std::process::Command::new("wget").arg("https://github.com/WasmEdge/WasmEdge/releases/download/0.13.3/WasmEdge-0.13.3-windows.zip").status();
-        if status.is_err() {
-            debug!("fail to download WasmEdge-0.13.3-windows.zip: {:?}", status);
-        } else {
-            debug!(
-                "success to download WasmEdge-0.13.3-windows.zip: {:?}",
-                status
-            );
-        }
+        // let status = std::process::Command::new("wget").arg("https://github.com/WasmEdge/WasmEdge/releases/download/0.13.3/WasmEdge-0.13.3-windows.zip").status();
+        // if status.is_err() {
+        //     debug!("fail to download WasmEdge-0.13.3-windows.zip: {:?}", status);
+        // } else {
+        //     debug!(
+        //         "success to download WasmEdge-0.13.3-windows.zip: {:?}",
+        //         status
+        //     );
+        // }
 
-        // unzip
-        let status = std::process::Command::new("unzip")
-            .arg("-q")
-            .arg("WasmEdge-0.13.3-windows.zip")
-            .arg("-d")
-            .arg(STANDALONE_DIR.to_str().unwrap())
-            .status();
-        if status.is_err() {
-            debug!("fail to unzip WasmEdge-0.13.3-windows.zip: {:?}", status);
-        } else {
-            debug!("success to unzip WasmEdge-0.13.3-windows.zip: {:?}", status);
-        }
+        // // unzip
+        // let status = std::process::Command::new("unzip")
+        //     .arg("-q")
+        //     .arg("WasmEdge-0.13.3-windows.zip")
+        //     .arg("-d")
+        //     .arg(STANDALONE_DIR.to_str().unwrap())
+        //     .status();
+        // if status.is_err() {
+        //     debug!("fail to unzip WasmEdge-0.13.3-windows.zip: {:?}", status);
+        // } else {
+        //     debug!("success to unzip WasmEdge-0.13.3-windows.zip: {:?}", status);
+        // }
 
-        // set PATH
-        if let Some(path) = env::var_os("PATH") {
-            let mut paths = env::split_paths(&path).collect::<Vec<_>>();
-            let wasmedge_dir = STANDALONE_DIR.join("WasmEdge-0.13.3-Windows");
-            if wasmedge_dir.exists() {
-                debug!("found wasmedge dir: {:?}", &wasmedge_dir);
-                let wasmedge_lib_dir = wasmedge_dir.join("bin");
-                if wasmedge_lib_dir.exists() {
-                    debug!("found wasmedge lib dir: {:?}", &wasmedge_lib_dir);
-                    let wasmedge_dll = wasmedge_lib_dir.join("wasmedge.dll");
-                    if wasmedge_dll.exists() {
-                        debug!("found wasmedge.dll: {:?}", &wasmedge_dll);
-                        paths.push(wasmedge_lib_dir);
-                    }
-                }
-            }
-            match env::join_paths(paths) {
-                Ok(new_path) => env::set_var("PATH", &new_path),
-                _ => panic!("fail to set the 'PATH' environment variable"),
-            }
+        // // set PATH
+        // if let Some(path) = env::var_os("PATH") {
+        //     let mut paths = env::split_paths(&path).collect::<Vec<_>>();
+        //     let wasmedge_dir = STANDALONE_DIR.join("WasmEdge-0.13.3-Windows");
+        //     if wasmedge_dir.exists() {
+        //         debug!("found wasmedge dir: {:?}", &wasmedge_dir);
+        //         let wasmedge_lib_dir = wasmedge_dir.join("bin");
+        //         if wasmedge_lib_dir.exists() {
+        //             debug!("found wasmedge lib dir: {:?}", &wasmedge_lib_dir);
+        //             let wasmedge_dll = wasmedge_lib_dir.join("wasmedge.dll");
+        //             if wasmedge_dll.exists() {
+        //                 debug!("found wasmedge.dll: {:?}", &wasmedge_dll);
+        //                 paths.push(wasmedge_lib_dir);
+        //             }
+        //         }
+        //     }
+        //     match env::join_paths(paths) {
+        //         Ok(new_path) => env::set_var("PATH", &new_path),
+        //         _ => panic!("fail to set the 'PATH' environment variable"),
+        //     }
 
-            // use a standalone library from an extracted archive
-            let standalone_dir = get_standalone_libwasmedge();
-            debug!("using standalone extraction at {standalone_dir:?}");
+        // // use a standalone library from an extracted archive
+        // let standalone_dir = get_standalone_libwasmedge();
+        // debug!("using standalone extraction at {standalone_dir:?}");
 
-            debug!("PATH: {:?}", env::var_os("PATH"));
-        }
+        // debug!("PATH: {:?}", env::var_os("PATH"));
+        // }
     }
 
     // find the location of the libwasmedge
@@ -198,9 +198,21 @@ fn main() {
             find_libwasmedge(&locations)
         }
     } else {
-        // find the library in the system
-        debug!("searching for existing libwasmedge install");
-        find_libwasmedge(&*SEARCH_LOCATIONS)
+        if cfg!(target_os = "windows") {
+            // use a standalone library from an extracted archive
+            let standalone_dir = get_standalone_libwasmedge();
+            debug!("using standalone extraction at {standalone_dir:?}");
+            let locations = [LibWasmEdgePaths::try_from(
+                &standalone_dir,
+                "include",
+                "bin",
+            )];
+            find_libwasmedge(&locations)
+        } else {
+            // find the library in the system
+            debug!("searching for existing libwasmedge install");
+            find_libwasmedge(&*SEARCH_LOCATIONS)
+        }
     };
 
     // ! debug
