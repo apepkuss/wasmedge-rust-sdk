@@ -161,19 +161,25 @@ fn main() {
             let base_dir = std::path::PathBuf::from("C:\\Program Files\\");
 
             // download
-            let status = std::process::Command::new("wget").arg("https://github.com/WasmEdge/WasmEdge/releases/download/0.13.3/WasmEdge-0.13.3-windows.zip").arg("-o").arg(base_dir.to_str().unwrap()).status();
-            // let res = std::process::Command::new("Invoke-WebRequest")
-            //     .arg("-Uri").arg("https://github.com/WasmEdge/WasmEdge/releases/download/0.13.3/WasmEdge-0.13.3-windows.zip").arg("-OutFile").arg(base_dir.to_str().unwrap()).output();
-            if status.is_err() {
-                debug!("fail to download WasmEdge-0.13.3-windows.zip: {:?}", status);
-            } else {
-                debug!(
-                    "success to download WasmEdge-0.13.3-windows.zip: {:?}",
-                    status
-                );
-            }
+            // let status = std::process::Command::new("wget").arg("https://github.com/WasmEdge/WasmEdge/releases/download/0.13.3/WasmEdge-0.13.3-windows.zip").status();
+            // // let res = std::process::Command::new("Invoke-WebRequest")
+            // //     .arg("-Uri").arg("https://github.com/WasmEdge/WasmEdge/releases/download/0.13.3/WasmEdge-0.13.3-windows.zip").arg("-OutFile").arg(base_dir.to_str().unwrap()).output();
+            // if status.is_err() {
+            //     debug!("fail to download WasmEdge-0.13.3-windows.zip: {:?}", status);
+            // } else {
+            //     debug!(
+            //         "success to download WasmEdge-0.13.3-windows.zip: {:?}",
+            //         status
+            //     );
+            // }
 
-            let zip_file = base_dir.join("WasmEdge-0.13.3-windows.zip");
+            let url = "https://github.com/WasmEdge/WasmEdge/releases/download/0.13.3/WasmEdge-0.13.3-windows.zip";
+            let dst = base_dir.join("archive.zip");
+            let mut request = do_http_request(url);
+            let mut file = std::fs::File::create(&dst).expect("failed to create archive");
+            std::io::copy(&mut request, &mut file).expect("failed to download archive");
+
+            let zip_file = base_dir.join("archive.zip");
             assert!(zip_file.exists());
             let wasmedge_dir = base_dir.join("WasmEdge-0.13.3-Windows");
 
