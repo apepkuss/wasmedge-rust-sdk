@@ -109,7 +109,7 @@ fn main() {
                     let wasmedge_dll = wasmedge_lib_dir.join("wasmedge.dll");
                     if wasmedge_dll.exists() {
                         debug!("found wasmedge.dll: {:?}", &wasmedge_dll);
-                        paths.push(wasmedge_dll);
+                        paths.push(wasmedge_lib_dir);
                     }
                 }
             }
