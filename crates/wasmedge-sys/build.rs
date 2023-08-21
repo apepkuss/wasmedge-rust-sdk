@@ -77,6 +77,11 @@ fn main() {
         let status = std::process::Command::new("wget").arg("https://github.com/WasmEdge/WasmEdge/releases/download/0.13.3/WasmEdge-0.13.3-windows.zip").status();
         if status.is_err() {
             debug!("fail to download WasmEdge-0.13.3-windows.zip: {:?}", status);
+        } else {
+            debug!(
+                "success to download WasmEdge-0.13.3-windows.zip: {:?}",
+                status
+            );
         }
 
         // unzip
@@ -88,6 +93,8 @@ fn main() {
             .status();
         if status.is_err() {
             debug!("fail to unzip WasmEdge-0.13.3-windows.zip: {:?}", status);
+        } else {
+            debug!("success to unzip WasmEdge-0.13.3-windows.zip: {:?}", status);
         }
 
         // set PATH
