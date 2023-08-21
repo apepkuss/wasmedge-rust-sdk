@@ -100,9 +100,7 @@ fn main() {
         // set PATH
         if let Some(path) = env::var_os("PATH") {
             let mut paths = env::split_paths(&path).collect::<Vec<_>>();
-            let curr_dir = std::env::current_dir().unwrap();
-            debug!("curr_dir: {:?}", &curr_dir);
-            let wasmedge_dir = curr_dir.join("WasmEdge-0.13.3-Windows");
+            let wasmedge_dir = STANDALONE_DIR.join("WasmEdge-0.13.3-Windows");
             if wasmedge_dir.exists() {
                 debug!("found wasmedge dir: {:?}", &wasmedge_dir);
                 let wasmedge_lib_dir = wasmedge_dir.join("bin");
