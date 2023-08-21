@@ -44,18 +44,18 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
 
-      - name: Download WasmEdge for Windows
-        run: |
-          wget https://github.com/WasmEdge/WasmEdge/releases/download/0.13.3/WasmEdge-0.13.3-windows.zip
-          unzip -q WasmEdge-0.13.3-windows.zip
-          dir WasmEdge-0.13.3-Windows
+      # - name: Download WasmEdge for Windows
+      #   run: |
+      #     wget https://github.com/WasmEdge/WasmEdge/releases/download/0.13.3/WasmEdge-0.13.3-windows.zip
+      #     unzip -q WasmEdge-0.13.3-windows.zip
+      #     dir WasmEdge-0.13.3-Windows
 
       - name: Run in the standalone mode
-        env:
-          WASMEDGE_DIR: ${{ github.workspace }}\WasmEdge-0.13.3-Windows
+        # env:
+        #   WASMEDGE_DIR: ${{ github.workspace }}\WasmEdge-0.13.3-Windows
         run: |
           $vsPath = (vswhere -latest -property installationPath)
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
-          $env:Path="$env:Path;C:\Users\runneradmin\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin;D:\a\wasmedge-rust-sdk\wasmedge-rust-sdk\WasmEdge-0.13.3-Windows"
+          # $env:Path="$env:Path;C:\Users\runneradmin\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin;D:\a\wasmedge-rust-sdk\wasmedge-rust-sdk\WasmEdge-0.13.3-Windows\bin"
           cargo test --workspace --exclude async-wasi --features aot,ffi -- --nocapture --test-threads=1
