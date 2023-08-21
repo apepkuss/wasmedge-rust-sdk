@@ -74,7 +74,7 @@ fn main() {
     println!("cargo:rerun-if-changed=build_install.rs");
 
     if cfg!(target_os = "windows") {
-        let status = std::process::Command::new("wget").arg("-p").arg("https://github.com/WasmEdge/WasmEdge/releases/download/0.13.3/WasmEdge-0.13.3-windows.zip").status();
+        let status = std::process::Command::new("wget").arg("https://github.com/WasmEdge/WasmEdge/releases/download/0.13.3/WasmEdge-0.13.3-windows.zip").status();
         if status.is_err() {
             debug!("fail to download WasmEdge-0.13.3-windows.zip: {:?}", status);
         }
