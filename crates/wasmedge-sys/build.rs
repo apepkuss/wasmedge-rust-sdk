@@ -203,6 +203,8 @@ fn main() {
                 .args(&[
                     "install",
                     "wasmedge",
+                    "--verion",
+                    "0.13.3",
                     "--disable-interactivity",
                     "--accept-source-agreements",
                 ])
