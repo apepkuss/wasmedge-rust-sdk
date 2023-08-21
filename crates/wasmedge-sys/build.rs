@@ -219,7 +219,7 @@ fn main() {
 
                 let wasmedge_bin_dir = standalone_dir.join("bin");
                 if wasmedge_bin_dir.exists() {
-                    debug!("found wasmedge lib dir: {:?}", &wasmedge_bin_dir);
+                    debug!("found wasmedge bin dir: {:?}", &wasmedge_bin_dir);
                     let wasmedge_dll = wasmedge_bin_dir.join("wasmedge.dll");
                     if wasmedge_dll.exists() {
                         debug!("found wasmedge.dll: {:?}", &wasmedge_dll);
