@@ -161,10 +161,9 @@ fn main() {
             let base_dir = std::path::PathBuf::from("C:\\Program Files\\");
 
             // download
-            // let res = std::process::Command::new("wget").arg("https://github.com/WasmEdge/WasmEdge/releases/download/0.13.3/WasmEdge-0.13.3-windows.zip").arg("-outfile").arg(base_dir.to_str().unwrap()).output();
-
-            let res = std::process::Command::new("Invoke-WebRequest")
-                .arg("-Uri").arg("https://github.com/WasmEdge/WasmEdge/releases/download/0.13.3/WasmEdge-0.13.3-windows.zip").arg("-OutFile").arg(base_dir.to_str().unwrap()).output();
+            let res = std::process::Command::new("wget").arg("https://github.com/WasmEdge/WasmEdge/releases/download/0.13.3/WasmEdge-0.13.3-windows.zip").arg("-outfile").arg(base_dir.to_str().unwrap()).output();
+            // let res = std::process::Command::new("Invoke-WebRequest")
+            //     .arg("-Uri").arg("https://github.com/WasmEdge/WasmEdge/releases/download/0.13.3/WasmEdge-0.13.3-windows.zip").arg("-OutFile").arg(base_dir.to_str().unwrap()).output();
             if res.is_err() {
                 debug!("fail to download WasmEdge-0.13.3-windows.zip: {:?}", res);
             } else {
