@@ -46,10 +46,10 @@ jobs:
 
       - name: Run in the standalone mode
         run: |
-          export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
-          export CC=clang
-          export CXX=clang++
-          export LD_LIBRARY_PATH=$HOME/.wasmedge/lib
+          # export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
+          # export CC=clang
+          # export CXX=clang++
+          # export LD_LIBRARY_PATH=$HOME/.wasmedge/lib
           cargo test --workspace --features aot,ffi,standalone -- --nocapture --test-threads=1
 
   build_ubuntu_2004:
@@ -80,10 +80,10 @@ jobs:
 
       - name: Run in the standalone mode
         run: |
-          export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
-          export CC=clang
-          export CXX=clang++
-          export LD_LIBRARY_PATH=$HOME/.wasmedge/lib
+          # export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
+          # export CC=clang
+          # export CXX=clang++
+          # export LD_LIBRARY_PATH=$HOME/.wasmedge/lib
           cargo test --workspace --features aot,ffi,standalone -- --nocapture --test-threads=1
 
   build_macos:
