@@ -44,6 +44,7 @@ impl Archive {
 }
 
 pub fn get_standalone_libwasmedge() -> std::path::PathBuf {
+    // get the archive
     let archive = match Env("WASMEDGE_STANDALONE_ARCHIVE").as_path() {
         Some(path) => Archive::Local { path },
         None => get_remote_archive(),
@@ -89,6 +90,7 @@ fn get_remote_archive() -> Archive {
     let os = Env("CARGO_CFG_TARGET_OS").expect_lossy("failed to read CARGO_CFG_TARGET_OS");
     let arch = Env("CARGO_CFG_TARGET_ARCH").expect_lossy("failed to read CARGO_CFG_TARGET_ARCH");
     let libc = Env("CARGO_CFG_TARGET_ENV").expect_lossy("failed to read CARGO_CFG_TARGET_ENV");
+    debug!("os: {os}, arch: {arch}, libc: {libc}");
 
     let mut target = format!("{os}/{arch}");
     if os == "linux" && !libc.is_empty() {
@@ -105,6 +107,7 @@ fn get_remote_archive() -> Archive {
         .to_owned();
 
     let url = format!("https://github.com/WasmEdge/WasmEdge/releases/download/{WASMEDGE_RELEASE_VERSION}/WasmEdge-{WASMEDGE_RELEASE_VERSION}-{slug}.tar.gz");
+    debug!("archive url: {url}");
 
     let checksum = sha.to_string();
     Archive::Remote { url, checksum }

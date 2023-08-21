@@ -118,6 +118,10 @@ fn main() {
                 _ => panic!("fail to set the 'PATH' environment variable"),
             }
 
+            // use a standalone library from an extracted archive
+            let standalone_dir = get_standalone_libwasmedge();
+            debug!("using standalone extraction at {standalone_dir:?}");
+
             debug!("PATH: {:?}", env::var_os("PATH"));
         }
     }
