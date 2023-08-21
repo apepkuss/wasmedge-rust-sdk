@@ -51,7 +51,9 @@ static ref SEARCH_LOCATIONS: [Option<LibWasmEdgePaths>; 11] = [
     LibWasmEdgePaths::try_from(Env("HOME"), ".local/include", ".local/lib"),
 ];
 
+#[derive(Debug)]
 static ref OUT_DIR: std::path::PathBuf = Env("OUT_DIR").expect("failed to get OUT_DIR");
+#[derive(Debug)]
 static ref STANDALONE_DIR: std::path::PathBuf = OUT_DIR.join("standalone");
 
 }
@@ -122,8 +124,8 @@ fn main() {
 
     // ! debug
     if cfg!(target_os = "windows") {
-        let x = std::env::var_os("HOMEPATH").unwrap();
-        debug!("HOMEPATH: {:?}", x);
+        debug!("OUT_DIR: {:?}", OUT_DIR);
+        debug!("STANDALONE_DIR: {:?}", STANDALONE_DIR);
     }
 
     let paths = paths.expect("Failed to locate the required header and/or library file. Please reference the link: https://wasmedge.org/book/en/embed/rust.html");
