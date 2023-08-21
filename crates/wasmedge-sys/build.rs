@@ -121,10 +121,10 @@ fn main() {
     };
 
     // ! debug
-    let status = std::process::Command::new("winget")
-        .arg("--version")
-        .status();
-    debug!("winget status: {:?}", status);
+    if cfg!(feature = "windows") {
+        let x = std::env::var_os("HOMEPATH").unwrap();
+        debug!("HOMEPATH: {:?}", x);
+    }
 
     let paths = paths.expect("Failed to locate the required header and/or library file. Please reference the link: https://wasmedge.org/book/en/embed/rust.html");
     debug!("found libwasmedge at {paths:?}");
