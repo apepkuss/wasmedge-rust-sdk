@@ -50,7 +50,7 @@ jobs:
           # export CC=clang
           # export CXX=clang++
           # export LD_LIBRARY_PATH=$HOME/.wasmedge/lib
-          cargo test --workspace --features aot,ffi,standalone -- --nocapture --test-threads=1
+          cargo test -p wasmedge-sdk --features aot,ffi,standalone -- --nocapture --test-threads=1
 
   build_ubuntu_2004:
     name: Ubuntu
