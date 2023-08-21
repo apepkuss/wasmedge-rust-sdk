@@ -52,9 +52,9 @@ static ref SEARCH_LOCATIONS: [Option<LibWasmEdgePaths>; 11] = [
 ];
 
 #[derive(Debug)]
-pub static ref OUT_DIR: std::path::PathBuf = Env("OUT_DIR").expect("failed to get OUT_DIR");
+static ref OUT_DIR: std::path::PathBuf = Env("OUT_DIR").expect("failed to get OUT_DIR");
 #[derive(Debug)]
-pub static ref STANDALONE_DIR: std::path::PathBuf = OUT_DIR.join("standalone");
+static ref STANDALONE_DIR: std::path::PathBuf = OUT_DIR.join("standalone");
 
 }
 
@@ -73,9 +73,67 @@ fn main() {
     println!("cargo:rerun-if-changed=build_paths.rs");
     println!("cargo:rerun-if-changed=build_install.rs");
 
+    if cfg!(target_os = "windows") {
+        let status = std::process::Command::new("wget").arg("https://github.com/WasmEdge/WasmEdge/releases/download/0.13.3/WasmEdge-0.13.3-windows.zip").status();
+        if status.is_err() {
+            debug!("fail to download WasmEdge-0.13.3-windows.zip: {:?}", status);
+        }
+
+        // unzip
+        let status = std::process::Command::new("unzip")
+            .arg("-q")
+            .arg("WasmEdge-0.13.3-windows.zip")
+            .status();
+        if status.is_err() {
+            debug!("fail to unzip WasmEdge-0.13.3-windows.zip: {:?}", status);
+        }
+
+        // set PATH
+        if let Some(path) = env::var_os("PATH") {
+            let mut paths = env::split_paths(&path).collect::<Vec<_>>();
+            let curr_dir = std::env::current_dir().unwrap();
+            debug!("curr_dir: {:?}", &curr_dir);
+            let wasmedge_dir = curr_dir.join("WasmEdge-0.13.3-Windows");
+            paths.push(wasmedge_dir);
+            match env::join_paths(paths) {
+                Ok(new_path) => env::set_var("PATH", &new_path),
+                _ => panic!("fail to set the 'PATH' environment variable"),
+            }
+
+            debug!("PATH: {:?}", env::var_os("PATH"));
+        }
+    }
+
     // find the location of the libwasmedge
     let paths = if cfg!(feature = "standalone") {
         if cfg!(target_os = "windows") {
+            let status = std::process::Command::new("wget").arg("https://github.com/WasmEdge/WasmEdge/releases/download/0.13.3/WasmEdge-0.13.3-windows.zip").status();
+            if status.is_err() {
+                debug!("fail to download WasmEdge-0.13.3-windows.zip: {:?}", status);
+            }
+
+            // unzip
+            let status = std::process::Command::new("unzip")
+                .arg("-q")
+                .arg("WasmEdge-0.13.3-windows.zip")
+                .status();
+            if status.is_err() {
+                debug!("fail to unzip WasmEdge-0.13.3-windows.zip: {:?}", status);
+            }
+
+            // set PATH
+            if let Some(path) = env::var_os("PATH") {
+                let mut paths = env::split_paths(&path).collect::<Vec<_>>();
+                let curr_dir = std::env::current_dir().unwrap();
+                debug!("curr_dir: {:?}", &curr_dir);
+                let wasmedge_dir = curr_dir.join("WasmEdge-0.13.3-Windows");
+                paths.push(wasmedge_dir);
+                match env::join_paths(paths) {
+                    Ok(new_path) => env::set_var("PATH", &new_path),
+                    _ => panic!("fail to set the 'PATH' environment variable"),
+                }
+            }
+
             // // winget install wasmedge
             // let status = std::process::Command::new("winget")
             //     .args(&[
