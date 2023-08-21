@@ -157,41 +157,83 @@ fn main() {
             //     }
             // }
 
-            // winget install wasmedge
-            let status = std::process::Command::new("winget")
-                .args(&[
-                    "install",
-                    "wasmedge",
-                    "--disable-interactivity",
-                    "--accept-source-agreements",
-                ])
-                .status();
-            if status.is_err() {
-                debug!("fail to install winget: {:?}", status);
-            }
+            // * ==================== winget install wasmedge ====================
+            // // winget install wasmedge
+            // let status = std::process::Command::new("winget")
+            //     .args(&[
+            //         "install",
+            //         "wasmedge",
+            //         "--disable-interactivity",
+            //         "--accept-source-agreements",
+            //     ])
+            //     .status();
+            // if status.is_err() {
+            //     debug!("fail to install winget: {:?}", status);
+            // }
 
-            let wasmedge_dir = std::path::PathBuf::from("C:\\Program Files\\WasmEdge");
-            if !wasmedge_dir.exists() {
-                debug!("winget install wasmedge failed");
-            } else if !wasmedge_dir.join("lib").exists() {
-                debug!("C:\\Program Files\\WasmEdge\\lib does not exit");
-            } else if !wasmedge_dir.join("lib").join("wasmedge.dll").exists() {
-                debug!("C:\\Program Files\\WasmEdge\\lib\\wasmedge.dll does not exit");
-            } else {
-                debug!("winget install wasmedge success");
-            }
+            // // ! debug
+            // let x = std::process::Command::new("wasmedge")
+            //     .arg("--version")
+            //     .output()
+            //     .unwrap();
+            // debug!("wasmedge --version: {:?}", x);
 
+            // let wasmedge_dir = std::path::PathBuf::from("C:\\Program Files\\WasmEdge");
+            // if !wasmedge_dir.exists() {
+            //     debug!("winget install wasmedge failed");
+            // } else if !wasmedge_dir.join("lib").exists() {
+            //     debug!("C:\\Program Files\\WasmEdge\\lib does not exit");
+            // } else if !wasmedge_dir.join("lib").join("wasmedge.dll").exists() {
+            //     debug!("C:\\Program Files\\WasmEdge\\lib\\wasmedge.dll does not exit");
+            // } else {
+            //     debug!("winget install wasmedge success");
+            // }
+
+            // if let Some(path) = env::var_os("PATH") {
+            //     let mut paths = env::split_paths(&path).collect::<Vec<_>>();
+            //     paths.push(PathBuf::from("C:\\Program Files\\WasmEdge\\lib"));
+            //     match env::join_paths(paths) {
+            //         Ok(new_path) => env::set_var("PATH", &new_path),
+            //         _ => panic!("fail to set the 'PATH' environment variable"),
+            //     }
+            // }
+
+            // let standalone_dir = std::path::PathBuf::from("C:\\Program Files\\WasmEdge");
+            // debug!("using standalone extraction at {standalone_dir:?}");
+            // let locations = [LibWasmEdgePaths::try_from(
+            //     &standalone_dir,
+            //     "include",
+            //     "lib",
+            // )];
+            // find_libwasmedge(&locations)
+
+            // * ==================== winget install wasmedge ====================
+
+            // use a standalone library from an extracted archive
+            let standalone_dir = get_standalone_libwasmedge();
+            debug!("using standalone extraction at {standalone_dir:?}");
+
+            // set PATH
             if let Some(path) = env::var_os("PATH") {
                 let mut paths = env::split_paths(&path).collect::<Vec<_>>();
-                paths.push(PathBuf::from("C:\\Program Files\\WasmEdge\\lib"));
+
+                let wasmedge_bin_dir = standalone_dir.join("bin");
+                if wasmedge_bin_dir.exists() {
+                    debug!("found wasmedge lib dir: {:?}", &wasmedge_bin_dir);
+                    let wasmedge_dll = wasmedge_bin_dir.join("wasmedge.dll");
+                    if wasmedge_dll.exists() {
+                        debug!("found wasmedge.dll: {:?}", &wasmedge_dll);
+                        paths.push(wasmedge_bin_dir);
+                    }
+                }
+
                 match env::join_paths(paths) {
                     Ok(new_path) => env::set_var("PATH", &new_path),
                     _ => panic!("fail to set the 'PATH' environment variable"),
                 }
+                debug!("PATH: {:?}", env::var_os("PATH"));
             }
 
-            let standalone_dir = std::path::PathBuf::from("C:\\Program Files\\WasmEdge");
-            debug!("using standalone extraction at {standalone_dir:?}");
             let locations = [LibWasmEdgePaths::try_from(
                 &standalone_dir,
                 "include",
@@ -210,29 +252,6 @@ fn main() {
         }
     } else {
         if cfg!(target_os = "windows") {
-            // let status = std::process::Command::new("winget")
-            //     .args(&[
-            //         "install",
-            //         "wasmedge",
-            //         "--verion",
-            //         "0.13.3",
-            //         "--disable-interactivity",
-            //         "--accept-source-agreements",
-            //     ])
-            //     .status();
-            // debug!("winget install wasmedge: {:?}", status);
-
-            // let wasmedge_dir = std::path::PathBuf::from("C:\\Program Files\\WasmEdge");
-            // if !wasmedge_dir.exists() {
-            //     debug!("winget install wasmedge failed");
-            // } else if !wasmedge_dir.join("lib").exists() {
-            //     debug!("C:\\Program Files\\WasmEdge\\lib does not exit");
-            // } else if !wasmedge_dir.join("lib").join("wasmedge.dll").exists() {
-            //     debug!("C:\\Program Files\\WasmEdge\\lib\\wasmedge.dll does not exit");
-            // } else {
-            //     debug!("winget install wasmedge success");
-            // }
-
             // use a standalone library from an extracted archive
             let standalone_dir = get_standalone_libwasmedge();
             debug!("using standalone extraction at {standalone_dir:?}");
