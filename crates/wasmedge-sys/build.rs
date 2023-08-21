@@ -52,9 +52,9 @@ static ref SEARCH_LOCATIONS: [Option<LibWasmEdgePaths>; 11] = [
 ];
 
 #[derive(Debug)]
-static ref OUT_DIR: std::path::PathBuf = Env("OUT_DIR").expect("failed to get OUT_DIR");
+pub static ref OUT_DIR: std::path::PathBuf = Env("OUT_DIR").expect("failed to get OUT_DIR");
 #[derive(Debug)]
-static ref STANDALONE_DIR: std::path::PathBuf = OUT_DIR.join("standalone");
+pub static ref STANDALONE_DIR: std::path::PathBuf = OUT_DIR.join("standalone");
 
 }
 
