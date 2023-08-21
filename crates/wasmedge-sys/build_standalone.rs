@@ -78,9 +78,9 @@ pub fn get_standalone_libwasmedge() -> std::path::PathBuf {
                 .arg(STANDALONE_DIR.to_str().unwrap())
                 .status();
             if status.is_err() {
-                debug!("fail to unzip WasmEdge-0.13.3-windows.zip: {:?}", status);
+                debug!("fail to unzip archive.zip: {:?}", status);
             } else {
-                debug!("success to unzip WasmEdge-0.13.3-windows.zip: {:?}", status);
+                debug!("success to unzip archive.zip: {:?}", status);
             }
         } else {
             let readable = std::fs::File::open(file).expect("failed to open archive");

@@ -202,10 +202,34 @@ fn main() {
             // use a standalone library from an extracted archive
             let standalone_dir = get_standalone_libwasmedge();
             debug!("using standalone extraction at {standalone_dir:?}");
+
+            // set PATH
+            if let Some(path) = env::var_os("PATH") {
+                let mut paths = env::split_paths(&path).collect::<Vec<_>>();
+                let dir_name = format!("{WASMEDGE_RELEASE_VERSION}-Windows");
+                let wasmedge_dir = STANDALONE_DIR.join(&dir_name);
+                if wasmedge_dir.exists() {
+                    debug!("found wasmedge dir: {:?}", &wasmedge_dir);
+                    let wasmedge_lib_dir = wasmedge_dir.join("bin");
+                    if wasmedge_lib_dir.exists() {
+                        debug!("found wasmedge lib dir: {:?}", &wasmedge_lib_dir);
+                        let wasmedge_dll = wasmedge_lib_dir.join("wasmedge.dll");
+                        if wasmedge_dll.exists() {
+                            debug!("found wasmedge.dll: {:?}", &wasmedge_dll);
+                            paths.push(wasmedge_lib_dir);
+                        }
+                    }
+                }
+                match env::join_paths(paths) {
+                    Ok(new_path) => env::set_var("PATH", &new_path),
+                    _ => panic!("fail to set the 'PATH' environment variable"),
+                }
+            }
+
             let locations = [LibWasmEdgePaths::try_from(
                 &standalone_dir,
                 "include",
-                "bin",
+                "lib",
             )];
             find_libwasmedge(&locations)
         } else {
