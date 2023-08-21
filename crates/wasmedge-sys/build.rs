@@ -212,10 +212,6 @@ fn main() {
             let wasmedge_dir = std::path::PathBuf::from("C:\\Program Files\\WasmEdge");
             if !wasmedge_dir.exists() {
                 debug!("winget install wasmedge failed");
-            } else if !wasmedge_dir.join("bin").exists() {
-                debug!("C:\\Program Files\\WasmEdge\\bin does not exit");
-            } else if !wasmedge_dir.join("bin").join("wasmedge.dll").exists() {
-                debug!("C:\\Program Files\\WasmEdge\\bin\\wasmedge.dll does not exit");
             } else if !wasmedge_dir.join("lib").exists() {
                 debug!("C:\\Program Files\\WasmEdge\\lib does not exit");
             } else if !wasmedge_dir.join("lib").join("wasmedge.dll").exists() {
