@@ -44,6 +44,11 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
 
+      - name: Install winget
+        uses: Cyberboss/install-winget@v1
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       # - name: Download WasmEdge for Windows
       #   run: |
       #     wget https://github.com/WasmEdge/WasmEdge/releases/download/0.13.3/WasmEdge-0.13.3-windows.zip
