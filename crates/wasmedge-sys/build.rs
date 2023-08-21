@@ -199,6 +199,27 @@ fn main() {
         }
     } else {
         if cfg!(target_os = "windows") {
+            let status = std::process::Command::new("winget")
+                .args(&[
+                    "install",
+                    "wasmedge",
+                    "--disable-interactivity",
+                    "--accept-source-agreements",
+                ])
+                .status();
+            debug!("winget install wasmedge: {:?}", status);
+
+            let wasmedge_dir = std::path::PathBuf::from("C:\\Program Files\\WasmEdge");
+            if !wasmedge_dir.exists() {
+                debug!("winget install wasmedge failed");
+            } else if !wasmedge_dir.join("bin").exists() {
+                debug!("C:\\Program Files\\WasmEdge\\bin does not exit");
+            } else if !wasmedge_dir.join("bin").join("wasmedge.dll").exists() {
+                debug!("C:\\Program Files\\WasmEdge\\bin\\wasmedge.dll does not exit");
+            } else {
+                debug!("winget install wasmedge success");
+            }
+
             // use a standalone library from an extracted archive
             let standalone_dir = get_standalone_libwasmedge();
             debug!("using standalone extraction at {standalone_dir:?}");
@@ -206,21 +227,6 @@ fn main() {
             // set PATH
             if let Some(path) = env::var_os("PATH") {
                 let mut paths = env::split_paths(&path).collect::<Vec<_>>();
-
-                // let dir_name = format!("{WASMEDGE_RELEASE_VERSION}-Windows");
-                // let wasmedge_dir = STANDALONE_DIR.join(&dir_name);
-                // if wasmedge_dir.exists() {
-                //     debug!("found wasmedge dir: {:?}", &wasmedge_dir);
-                //     let wasmedge_lib_dir = wasmedge_dir.join("bin");
-                //     if wasmedge_lib_dir.exists() {
-                //         debug!("found wasmedge lib dir: {:?}", &wasmedge_lib_dir);
-                //         let wasmedge_dll = wasmedge_lib_dir.join("wasmedge.dll");
-                //         if wasmedge_dll.exists() {
-                //             debug!("found wasmedge.dll: {:?}", &wasmedge_dll);
-                //             paths.push(wasmedge_lib_dir);
-                //         }
-                //     }
-                // }
 
                 let wasmedge_bin_dir = standalone_dir.join("bin");
                 if wasmedge_bin_dir.exists() {
