@@ -251,43 +251,47 @@ fn main() {
             find_libwasmedge(&locations)
         }
     } else {
-        if cfg!(target_os = "windows") {
-            // use a standalone library from an extracted archive
-            let standalone_dir = get_standalone_libwasmedge();
-            debug!("using standalone extraction at {standalone_dir:?}");
+        // if cfg!(target_os = "windows") {
+        //     // use a standalone library from an extracted archive
+        //     let standalone_dir = get_standalone_libwasmedge();
+        //     debug!("using standalone extraction at {standalone_dir:?}");
 
-            // set PATH
-            if let Some(path) = env::var_os("PATH") {
-                let mut paths = env::split_paths(&path).collect::<Vec<_>>();
+        //     // set PATH
+        //     if let Some(path) = env::var_os("PATH") {
+        //         let mut paths = env::split_paths(&path).collect::<Vec<_>>();
 
-                let wasmedge_bin_dir = standalone_dir.join("bin");
-                if wasmedge_bin_dir.exists() {
-                    debug!("found wasmedge lib dir: {:?}", &wasmedge_bin_dir);
-                    let wasmedge_dll = wasmedge_bin_dir.join("wasmedge.dll");
-                    if wasmedge_dll.exists() {
-                        debug!("found wasmedge.dll: {:?}", &wasmedge_dll);
-                        paths.push(wasmedge_bin_dir);
-                    }
-                }
+        //         let wasmedge_bin_dir = standalone_dir.join("bin");
+        //         if wasmedge_bin_dir.exists() {
+        //             debug!("found wasmedge lib dir: {:?}", &wasmedge_bin_dir);
+        //             let wasmedge_dll = wasmedge_bin_dir.join("wasmedge.dll");
+        //             if wasmedge_dll.exists() {
+        //                 debug!("found wasmedge.dll: {:?}", &wasmedge_dll);
+        //                 paths.push(wasmedge_bin_dir);
+        //             }
+        //         }
 
-                match env::join_paths(paths) {
-                    Ok(new_path) => env::set_var("PATH", &new_path),
-                    _ => panic!("fail to set the 'PATH' environment variable"),
-                }
-                debug!("PATH: {:?}", env::var_os("PATH"));
-            }
+        //         match env::join_paths(paths) {
+        //             Ok(new_path) => env::set_var("PATH", &new_path),
+        //             _ => panic!("fail to set the 'PATH' environment variable"),
+        //         }
+        //         debug!("PATH: {:?}", env::var_os("PATH"));
+        //     }
 
-            let locations = [LibWasmEdgePaths::try_from(
-                &standalone_dir,
-                "include",
-                "lib",
-            )];
-            find_libwasmedge(&locations)
-        } else {
-            // find the library in the system
-            debug!("searching for existing libwasmedge install");
-            find_libwasmedge(&*SEARCH_LOCATIONS)
-        }
+        //     let locations = [LibWasmEdgePaths::try_from(
+        //         &standalone_dir,
+        //         "include",
+        //         "lib",
+        //     )];
+        //     find_libwasmedge(&locations)
+        // } else {
+        //     // find the library in the system
+        //     debug!("searching for existing libwasmedge install");
+        //     find_libwasmedge(&*SEARCH_LOCATIONS)
+        // }
+
+        // find the library in the system
+        debug!("searching for existing libwasmedge install");
+        find_libwasmedge(&*SEARCH_LOCATIONS)
     };
 
     // ! debug
