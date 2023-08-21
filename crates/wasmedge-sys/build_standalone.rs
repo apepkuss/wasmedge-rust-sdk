@@ -106,7 +106,11 @@ fn get_remote_archive() -> Archive {
         .expect("target not supported with features `standalone` and `static`")
         .to_owned();
 
-    let url = format!("https://github.com/WasmEdge/WasmEdge/releases/download/{WASMEDGE_RELEASE_VERSION}/WasmEdge-{WASMEDGE_RELEASE_VERSION}-{slug}.tar.gz");
+    let url = if cfg!(target_os = "windows") {
+        format!("https://github.com/WasmEdge/WasmEdge/releases/download/{WASMEDGE_RELEASE_VERSION}/WasmEdge-{WASMEDGE_RELEASE_VERSION}-{slug}.zip")
+    } else {
+        format!("https://github.com/WasmEdge/WasmEdge/releases/download/{WASMEDGE_RELEASE_VERSION}/WasmEdge-{WASMEDGE_RELEASE_VERSION}-{slug}.tar.gz")
+    };
     debug!("archive url: {url}");
 
     let checksum = sha.to_string();
