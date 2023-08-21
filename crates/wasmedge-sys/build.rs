@@ -1,6 +1,6 @@
 use lazy_static::lazy_static;
 use phf::phf_map;
-use std::{env, path::PathBuf};
+use std::env;
 
 mod build_paths;
 use build_paths::{Env, LibWasmEdgePaths};
