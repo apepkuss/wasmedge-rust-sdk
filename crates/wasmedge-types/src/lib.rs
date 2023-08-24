@@ -19,12 +19,16 @@ pub enum RefType {
 
     /// Refers to the infinite union of all references to objects and that can be passed into WebAssembly under this type.
     ExternRef,
+    TypedFuncRef,
+    TypedFuncRefNull,
 }
 impl From<u32> for RefType {
     fn from(value: u32) -> Self {
         match value {
             112 => RefType::FuncRef,
             111 => RefType::ExternRef,
+            108 => RefType::TypedFuncRefNull,
+            107 => RefType::TypedFuncRef,
             _ => panic!("[wasmedge-types] Invalid WasmEdge_RefType: {value:#X}"),
         }
     }
@@ -34,23 +38,8 @@ impl From<RefType> for u32 {
         match value {
             RefType::FuncRef => 112,
             RefType::ExternRef => 111,
-        }
-    }
-}
-impl From<i32> for RefType {
-    fn from(value: i32) -> Self {
-        match value {
-            112 => RefType::FuncRef,
-            111 => RefType::ExternRef,
-            _ => panic!("[wasmedge-types] Invalid WasmEdge_RefType: {value:#X}"),
-        }
-    }
-}
-impl From<RefType> for i32 {
-    fn from(value: RefType) -> Self {
-        match value {
-            RefType::FuncRef => 112,
-            RefType::ExternRef => 111,
+            RefType::TypedFuncRefNull => 108,
+            RefType::TypedFuncRef => 107,
         }
     }
 }
@@ -75,64 +64,14 @@ pub enum ValType {
     /// The packed data can be interpreted as signed or unsigned integers, single or double precision floating-point
     /// values, or a single 128 bit type. The interpretation is determined by individual operations.
     V128,
-    /// A reference to a host function.
+    /// Represents a reference to host function.
     FuncRef,
-    /// A reference to object.
+    /// Represents a host reference that can beused as both a value types and a table element type.
     ExternRef,
-}
-impl From<u32> for ValType {
-    fn from(value: u32) -> Self {
-        match value {
-            127 => ValType::I32,
-            126 => ValType::I64,
-            125 => ValType::F32,
-            124 => ValType::F64,
-            123 => ValType::V128,
-            112 => ValType::FuncRef,
-            111 => ValType::ExternRef,
-            _ => panic!("[wasmedge-types] Invalid WasmEdge_ValType: {value:#X}"),
-        }
-    }
-}
-impl From<ValType> for u32 {
-    fn from(value: ValType) -> Self {
-        match value {
-            ValType::I32 => 127,
-            ValType::I64 => 126,
-            ValType::F32 => 125,
-            ValType::F64 => 124,
-            ValType::V128 => 123,
-            ValType::FuncRef => 112,
-            ValType::ExternRef => 111,
-        }
-    }
-}
-impl From<i32> for ValType {
-    fn from(value: i32) -> Self {
-        match value {
-            127 => ValType::I32,
-            126 => ValType::I64,
-            125 => ValType::F32,
-            124 => ValType::F64,
-            123 => ValType::V128,
-            112 => ValType::FuncRef,
-            111 => ValType::ExternRef,
-            _ => panic!("[wasmedge-types] Invalid WasmEdge_ValType: {value:#X}"),
-        }
-    }
-}
-impl From<ValType> for i32 {
-    fn from(value: ValType) -> Self {
-        match value {
-            ValType::I32 => 127,
-            ValType::I64 => 126,
-            ValType::F32 => 125,
-            ValType::F64 => 124,
-            ValType::V128 => 123,
-            ValType::FuncRef => 112,
-            ValType::ExternRef => 111,
-        }
-    }
+    /// Represents a typed reference to host function.
+    TypedFuncRef,
+    /// Represents a nullable typed reference to host function.
+    TypedFuncRefNull,
 }
 
 /// Defines the mutability property of WasmEdge Global variables.
