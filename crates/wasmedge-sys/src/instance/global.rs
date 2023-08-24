@@ -3,7 +3,7 @@
 //! A WasmEdge `Global` defines a global variable, which stores a single value of the given `GlobalType`.
 //! `GlobalType` specifies whether a global variable is immutable or mutable.
 
-use crate::{ffi, WasmEdgeResult, WasmValue};
+use crate::{ffi, utils::check, WasmEdgeResult, WasmValue};
 use parking_lot::Mutex;
 use std::sync::Arc;
 use wasmedge_types::{
@@ -99,8 +99,12 @@ impl Global {
                 GlobalError::UnmatchedValType,
             )));
         }
-        unsafe { ffi::WasmEdge_GlobalInstanceSetValue(self.inner.lock().0, val.as_raw()) }
-        Ok(())
+        unsafe {
+            check(ffi::WasmEdge_GlobalInstanceSetValue(
+                self.inner.lock().0,
+                val.as_raw(),
+            ))
+        }
     }
 
     /// Provides a raw pointer to the inner global context.
