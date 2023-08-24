@@ -76,6 +76,12 @@ impl From<WasmValue> for Val {
                     Val::ExternRef(Some(ExternRef { inner: value }))
                 }
             }
+            wasmedge_types::ValType::TypedFuncRef => {
+                panic!("[wasmedge] TypedFuncRef is not supported.")
+            }
+            wasmedge_types::ValType::TypedFuncRefNull => {
+                panic!("[wasmedge] TypedFuncRefNull is not supported.")
+            }
         }
     }
 }
