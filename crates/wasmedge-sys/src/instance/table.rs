@@ -27,11 +27,11 @@ pub struct Table {
     pub(crate) registered: bool,
 }
 impl Table {
-    /// Creates a new [Table] to be associated with the given element type and the size.
+    /// Creates a [Table] to be associated with the given element type and the size.
     ///
     /// # Arguments
     ///
-    /// - `ty` specifies the type of the new [Table].
+    /// * `ty` specifies the type of the new [Table].
     ///
     /// # Error
     ///
@@ -51,6 +51,31 @@ impl Table {
     /// ```
     pub fn create(ty: &TableType) -> WasmEdgeResult<Self> {
         let ctx = unsafe { ffi::WasmEdge_TableInstanceCreate(ty.inner.0) };
+
+        match ctx.is_null() {
+            true => Err(Box::new(WasmEdgeError::Table(TableError::Create))),
+            false => Ok(Table {
+                inner: Arc::new(Mutex::new(InnerTable(ctx))),
+                registered: false,
+            }),
+        }
+    }
+
+    /// Creates a [Table] of the given [table type](crate::instance::table::TableType) and the initial value.
+    ///
+    /// # Arguments
+    ///
+    /// * `ty` specifies the type of the new [Table].
+    ///
+    /// * `value` specifies the initial value of the new [Table].
+    ///
+    /// Notice that the type of the `value` should be compatible with the type of the table. If the type of the table is a `non-nullable` reference type, then the creation will fail when the initial value is of `null` reference.
+    ///
+    /// # Error
+    ///
+    /// * If fail to create the table instance, then WasmEdgeError::Table(TableError::Create)(crate::error::TableError) is returned.
+    pub fn create_with_init_value(ty: &TableType, value: WasmValue) -> WasmEdgeResult<Self> {
+        let ctx = unsafe { ffi::WasmEdge_TableInstanceCreateWithInit(ty.inner.0, value.as_raw()) };
 
         match ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::Table(TableError::Create))),
