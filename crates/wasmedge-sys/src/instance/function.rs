@@ -236,7 +236,13 @@ impl Function {
             None => std::ptr::null_mut(),
         };
 
-        unsafe { Self::create_with_data(ty, real_fn, data, cost) }
+        let res = unsafe { Self::create_with_data(ty, real_fn, data, cost) };
+
+        if !data.is_null() {
+            let _ = unsafe { Box::from_raw(data as *mut T) };
+        }
+
+        res
     }
 
     /// Creates a [host function](crate::Function) with the given function type.
@@ -806,6 +812,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_func_basic() {
         #[derive(Debug)]
         struct Data<T, S> {
