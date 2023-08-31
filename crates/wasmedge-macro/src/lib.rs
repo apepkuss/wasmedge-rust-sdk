@@ -397,7 +397,16 @@ fn expand_async_host_func_with_three_args(item_fn: &syn::ItemFn) -> proc_macro2:
     };
 
     // func body
-    let fn_block = item_fn.block.clone();
+    let mut fn_block = item_fn.block.clone();
+
+    let stmts = &mut fn_block.stmts;
+    let new_stmts: syn::Stmt = parse_quote!({
+        let raw_ptr = #ident_third_arg as #ty_third_arg;
+        let boxed = unsafe { Box::from_raw(raw_ptr) };
+    });
+    let last = stmts.pop().unwrap();
+    stmts.push(new_stmts);
+    stmts.push(last);
 
     quote!(
         #wrapper_visibility fn #wrapper_fn_name_ident (#wrapper_fn_inputs) -> Box<(dyn std::future::Future<Output = Result<Vec<WasmValue>, HostFuncError>> + Send)> {
@@ -407,12 +416,18 @@ fn expand_async_host_func_with_three_args(item_fn: &syn::ItemFn) -> proc_macro2:
 
             let #ident_second_arg = args;
 
-            // host context data
-            let #ident_third_arg = unsafe { &mut *(data as #ty_third_arg) };
+            let boxed = unsafe { Box::from_raw(data as #ty_third_arg) };
+            let #ident_third_arg = Box::leak(boxed);
 
-            Box::new(async move {
+
+            let res = Box::new(async move {
                 #fn_block
-            })
+            });
+
+
+
+
+            res
         }
     )
 }
