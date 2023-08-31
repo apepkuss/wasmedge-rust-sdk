@@ -615,7 +615,8 @@ mod tests {
          -> Box<
             (dyn std::future::Future<Output = Result<Vec<WasmValue>, HostFuncError>> + Send),
         > {
-            let data = unsafe { Box::from_raw(data as *mut Data<i32, &str>) };
+            let boxed = unsafe { Box::from_raw(data as *mut Circle) };
+            let data = Box::leak(boxed);
 
             Box::new(async move {
                 for _ in 0..10 {
@@ -626,27 +627,24 @@ mod tests {
 
                 println!("[async hello] Done!");
 
+                let raw_ptr = data as *mut Circle;
+                let _ = unsafe { Box::from_raw(raw_ptr) };
+
                 Ok(vec![])
             })
         };
 
-        #[derive(Debug)]
-        struct Data<T, S> {
-            _x: i32,
-            _y: String,
-            _v: Vec<T>,
-            _s: Vec<S>,
+        // define host data
+        #[derive(Clone, Debug)]
+        struct Circle {
+            radius: i32,
         }
-        let data: Data<i32, &str> = Data {
-            _x: 12,
-            _y: "hello".to_string(),
-            _v: vec![1, 2, 3],
-            _s: vec!["macos", "linux", "windows"],
-        };
+
+        let circle = Circle { radius: 10 };
 
         // create an ImportModule instance
         let result = ImportObjectBuilder::new()
-            .with_async_func::<(), (), Data<i32, &str>>("async_hello", c, Some(Box::new(data)))?
+            .with_async_func::<(), (), Circle>("async_hello", c, Some(Box::new(circle)))?
             .build::<NeverType>("extern", None);
         assert!(result.is_ok());
         let import = result.unwrap();
