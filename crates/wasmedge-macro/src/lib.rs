@@ -419,15 +419,9 @@ fn expand_async_host_func_with_three_args(item_fn: &syn::ItemFn) -> proc_macro2:
             let boxed = unsafe { Box::from_raw(data as #ty_third_arg) };
             let #ident_third_arg = Box::leak(boxed);
 
-
-            let res = Box::new(async move {
+            Box::new(async move {
                 #fn_block
-            });
-
-
-
-
-            res
+            })
         }
     )
 }
