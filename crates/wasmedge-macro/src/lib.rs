@@ -198,9 +198,15 @@ fn expand_host_func_with_three_args(item_fn: &syn::ItemFn) -> proc_macro2::Token
             // create a Caller instance
             let caller = Caller::new(frame);
 
-            let data = unsafe { &mut *(data as #ty_ptr) };
+            let boxed = unsafe { Box::from_raw(data as #ty_ptr) };
+            let data = Box::leak(boxed);
 
-            #inner_fn_name_ident(caller, args, data)
+            let res = #inner_fn_name_ident(caller, args, data);
+
+            let raw_ptr = data as #ty_ptr;
+            let boxed = unsafe { Box::from_raw(raw_ptr) };
+
+            res
         }
     )
 }
